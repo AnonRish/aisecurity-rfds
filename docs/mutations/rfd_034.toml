@@ -1,0 +1,31 @@
+# Seeded bugs for RFD 034. Run: python scripts/mutation_check.py 34
+
+[[mutation]]
+name = "no read-back after a write"
+file = "guards.py"
+pattern = 'if self.verify_after_write and record.read() != payload:'
+replace = 'if False:'
+
+[[mutation]]
+name = "OTP rollback floor always zero"
+file = "guards.py"
+pattern = 'return self._counter.value() * self.stride'
+replace = 'return 0'
+
+[[mutation]]
+name = "authority signature not checked"
+file = "guards.py"
+pattern = 'if not self._verifier(self.authority_public, lic.content_digest(), lic.signature):'
+replace = 'if False:'
+
+[[mutation]]
+name = "hash log never records a license"
+file = "guards.py"
+pattern = 'self._put(self._count, u64(total + 1))'
+replace = 'pass'
+
+[[mutation]]
+name = "challenge not cleared after use"
+file = "guards.py"
+pattern = 'self._put(self._pending, b"")'
+replace = 'pass'

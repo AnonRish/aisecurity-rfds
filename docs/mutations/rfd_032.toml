@@ -1,0 +1,39 @@
+# Seeded bugs for RFD 032. Run: python scripts/mutation_check.py 32
+# Each entry is ONE edit to the first occurrence of `pattern` in src/aisecurity_rfds/rfd_032_*/<file>.
+# The package's tests must fail for every entry; a surviving mutation means a guarantee is not actually tested.
+
+[[mutation]]
+name = "serial binding removed"
+file = "chip.py"
+pattern = 'if lic.device_serial != self.serial:'
+replace = 'if False:'
+
+[[mutation]]
+name = "sequence check removed"
+file = "chip.py"
+pattern = 'if lic.sequence <= self._last_sequence:'
+replace = 'if False:'
+
+[[mutation]]
+name = "checkpoint persists the exact balance instead of a conservative one"
+file = "chip.py"
+pattern = 'persisted[m] = max(0, remaining[m] - self._interval[m])'
+replace = 'persisted[m] = remaining[m] + self._interval[m]'
+
+[[mutation]]
+name = "u64 overflow check removed"
+file = "chip.py"
+pattern = 'if value > U64_MAX:'
+replace = 'if False:'
+
+[[mutation]]
+name = "duplicate meter names allowed"
+file = "chip.py"
+pattern = 'or names != sorted(set(names))'
+replace = ''
+
+[[mutation]]
+name = "balance cap check removed"
+file = "chip.py"
+pattern = 'if value > self._cap[meter]:'
+replace = 'if False:'

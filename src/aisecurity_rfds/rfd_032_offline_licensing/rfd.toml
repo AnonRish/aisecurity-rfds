@@ -1,0 +1,15 @@
+number = 32
+slug = "offline_licensing"
+title = "Offline Licensing for Compute Rationing"
+author = "RAND Corporation"
+upstream_state = "idea"
+kind = "reference-implementation"
+summary = "An on-chip license verifier and meter block on real Ed25519 (device binding, replay, overflow, caps, fail-safe checkpointing), plus assumption-labelled models of throttle actions, mid-job exhaustion policies and stockpiling."
+not_established = [
+  "No silicon was involved: throttle speeds, job sizes and reissue delays are assumed parameters, so the policy and throttle tables characterise those models, not any GPU or deployment.",
+  "Flash rollback is not defended in this package: it restores an older, larger balance and sequence number (shown by a limitation test); fuse floors and counter integrity are the subject of RFD 034 and RFD 035.",
+  "Who the license authority is, how budgets are allocated, and how a signing key is protected are institutional questions and are not modelled; only the signed-license mechanics are.",
+  "Side-channel extraction of the verification path, wire-cutting bypass of the throttle, and fault injection into the meter registers (all named in the RFD's security table) were not modelled.",
+]
+open_questions_total = 7
+open_questions_addressed = 5

@@ -1,0 +1,127 @@
+# Seeded bugs for RFD 035. Run: python scripts/mutation_check.py 35
+
+[[mutation]]
+name = "power cross-check disabled"
+file = "checks.py"
+pattern = '"power-consistency": abs(power_z([r], th.sigma_rel)) > th.z_crit,'
+replace = '"power-consistency": False,'
+
+[[mutation]]
+name = "peer comparison blind"
+file = "checks.py"
+pattern = 'peer = bool(np.any(np.abs(ratio[active] - med) > th.peer_scale * scale))'
+replace = 'peer = False'
+
+[[mutation]]
+name = "aggregator cross-check disabled"
+file = "checks.py"
+pattern = 'agg = any(abs(a - s) > th.agg_tol * max(1.0, s) for a, s in zip(r.agg_flops, group_sums))'
+replace = 'agg = False'
+
+[[mutation]]
+name = "power residual divided by measured power (the biased original)"
+file = "checks.py"
+pattern = 'resid.append((r.power_w - pred) / (sigma_rel * pred))'
+replace = 'resid.append((r.power_w - pred) / (sigma_rel * r.power_w))'
+
+[[mutation]]
+name = "idle-SM memory rule removed"
+file = "checks.py"
+pattern = 'orphan_mem = bool(np.any(idle & ((r.mem > 0) | (r.miss > 0))))'
+replace = 'orphan_mem = False'
+
+[[mutation]]
+name = "minimum-detectable-fraction formula drops the interval count"
+file = "checks.py"
+pattern = 'z_crit * sigma_rel * power_w / (hidable_dynamic_w * (np.sqrt(n_windows) + z_crit * sigma_rel))'
+replace = 'z_crit * sigma_rel * power_w / (hidable_dynamic_w * (1.0 + z_crit * sigma_rel))'
+
+[[mutation]]
+name = "detection formula drops sqrt(n)"
+file = "attacks.py"
+pattern = 'mean = np.sqrt(n) * h * p_dynamic / (sigma_rel * predicted)'
+replace = 'mean = h * p_dynamic / (sigma_rel * predicted)'
+
+[[mutation]]
+name = "fake traffic power-matched at twice the right ratio"
+file = "hiding.py"
+pattern = 'POWER_MATCH_RATIO = K_FLOP / K_MEM'
+replace = 'POWER_MATCH_RATIO = 2 * K_FLOP / K_MEM'
+
+[[mutation]]
+name = "hiding closed form omits the power-matching term"
+file = "hiding.py"
+pattern = 'h_band = (kappa - mu / rho) / (kappa + c)'
+replace = 'h_band = (kappa - mu / rho) / kappa'
+
+[[mutation]]
+name = "replays accepted (sequence compared with < instead of <=)"
+file = "readout.py"
+pattern = 'if ro.seq <= self.seq:'
+replace = 'if ro.seq < self.seq:'
+
+[[mutation]]
+name = "device signature not verified"
+file = "readout.py"
+pattern = 'if not self._verify(self._device_public, ro.digest(), ro.signature):'
+replace = 'if False:'
+
+[[mutation]]
+name = "hash chain not verified"
+file = "readout.py"
+pattern = 'if not ct_equal(ro.prev_hash, self.head):'
+replace = 'if False:'
+
+[[mutation]]
+name = "block ignores the ticket's epoch"
+file = "readout.py"
+pattern = 'if ticket.from_epoch != self.epoch:'
+replace = 'if False:'
+
+[[mutation]]
+name = "block ignores ticket expiry"
+file = "readout.py"
+pattern = 'if self.ticks > ticket.not_after_tick:'
+replace = 'if False:'
+
+[[mutation]]
+name = "epoch not advanced by a reset"
+file = "readout.py"
+pattern = 'self.epoch += 1'
+replace = 'pass'
+
+[[mutation]]
+name = "delta plausibility check removed"
+file = "readout.py"
+pattern = 'if any(d > rate * elapsed for d, rate in zip(deltas, self.max_rate, strict=True)):'
+replace = 'if False:'
+
+[[mutation]]
+name = "over-credit invariant disabled in the exploration"
+file = "monotonic.py"
+pattern = 'if credited > self.true_work:'
+replace = 'if False:'
+
+[[mutation]]
+name = "work-conservation invariant disabled in the exploration"
+file = "monotonic.py"
+pattern = 'if self.true_work - credited != self.lost + self.stalled_work:'
+replace = 'if False:'
+
+[[mutation]]
+name = "majority vote accepts exactly half"
+file = "redundancy.py"
+pattern = 'return value if votes * 2 > len(self.copies) else None'
+replace = 'return value if votes * 2 >= len(self.copies) else None'
+
+[[mutation]]
+name = "redundant copies always report consistent"
+file = "redundancy.py"
+pattern = 'return len(set(self.copies)) == 1'
+replace = 'return True'
+
+[[mutation]]
+name = "clock-gating stall never applied in the device simulation"
+file = "device_sim.py"
+pattern = 'if scenario == "clock-gating-stall" and k == onset:'
+replace = 'if False:'

@@ -1,0 +1,17 @@
+number = 35
+slug = "perf_counter_integrity"
+title = "Performance Counter Integrity Protection"
+author = "RAND Corporation"
+upstream_state = "idea"
+kind = "simulation"
+summary = "Synthetic per-SM telemetry with the RFD's six counter attacks, eight verifier checks, an attacker who hides work behind them, and a signed hash-chained readout protocol with authorised resets, explored exhaustively at small bounds."
+not_established = [
+  "Every telemetry value, power coefficient, noise level and workload class is an assumption in model.py; nothing was measured on a GPU, so detection rates and hideable fractions describe this model, not any chip.",
+  "The power cross-check assumes the verifier knows the power model exactly and that power is sensed by a path the attacker cannot touch; model error and sensor tampering are probed only through a sigma sensitivity column.",
+  "The fault-injection techniques (EM pulse, voltage glitch, laser, FIB) and the shielding defences are not modelled physically; attacks are abstract edits of readings and the EMP disc is a geometric stand-in.",
+  "The exhaustive exploration covers this Python implementation at tiny widths and depth with an ideal signature scheme; it is bounded model checking, not a verification of counter hardware or of Ed25519.",
+  "The protocol protects the channel only: a sensor that counts less (stall, cut wire, glitch timed to regain the old value) yields validly signed, plausible readouts, and only cross-checks can see it.",
+  "Area and power overhead of redundant counters and of a signing block are not estimated, and no statement is made about whether existing GPU counter hardware can be hardened.",
+]
+open_questions_total = 5
+open_questions_addressed = 3

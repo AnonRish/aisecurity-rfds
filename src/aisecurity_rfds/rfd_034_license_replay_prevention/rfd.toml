@@ -1,0 +1,15 @@
+number = 34
+slug = "license_replay_prevention"
+title = "License Replay Prevention"
+author = "RAND Corporation"
+upstream_state = "idea"
+kind = "reference-implementation"
+summary = "Executable hash-log, sequence-number, challenge and hybrid replay guards on simulated fuses and flash, run against rollback, high-voltage disruption, torn-write and stockpiling attacks."
+not_established = [
+  "Nothing here was measured on real OTP fuses, flash or a hardware random-number generator; every result is a property of the simulation model in hardware.py.",
+  "The license authority, its key management and the governance process that decides budgets are out of scope; stockpiling before a policy change is only characterised, not prevented.",
+  "Fault injection beyond power loss, high-voltage starvation and flash imaging (for example voltage glitches on the signature check or invasive probing) was not modelled.",
+  "The external commitment option is modelled only as signed (sequence, timestamp) records; clock integrity and what an audit may force a tampered chip to reveal are assumptions, not results.",
+]
+open_questions_total = 5
+open_questions_addressed = 4
