@@ -1,0 +1,16 @@
+number = 31
+slug = "chip_registry"
+title = "Chip Registry for AI Governance"
+author = "Oxford Martin AI Governance Initiative"
+upstream_state = "idea"
+kind = "reference-implementation"
+summary = "A working registry protocol for AI chips (key-bound identifiers, a sparse Merkle map of ownership records, a signed append-only log, rules for enrolment, sale, relocation and retirement, clients, auditors and witnesses) run against 40 executed attacks, with simulated identifiers (copied-key detection by an attestation counter, PUF, glitter tag) and location commitments with sampling audits."
+not_established = [
+  "Nothing here was measured on real chips, PUFs, tags or registries: the device key, the PUF and the glitter tag are simulated and their parameters are assumptions, and open question 1 (how robust on-chip keys are against a state actor with physical access) is not addressed, so the value of the counter tripwire against such an actor is unknown.",
+  "The cryptography establishes who asked for a change and that the log and the map are consistent; it does not establish that a chip is where its record says, that a declared jurisdiction is true, that a destroyed chip was destroyed, or that a request the operator dropped was ever submitted.",
+  "Governance is reduced to counts: how many witnesses must collude to show two registries, and who may sign for manufacturers, destruction and embargoes; who should hold those roles and who sets the policy (an international body, a consortium, a distributed set) is not answered.",
+  "The location audit assumes an inspector can challenge a chip and that a chip which answers is where the inspector is; a relayed challenge (RFD 026), a chip borrowed from another site for a day, and a facility told in advance which chips will be inspected are not modelled.",
+  "Time, scale and operations are not tested: the operator's and clients' clocks are inputs, proof sizes at ten million and a billion chips are extrapolations of log2(n), and key rotation and compromise, availability, denial of service and storage of the log are outside the model.",
+]
+open_questions_total = 6
+open_questions_addressed = 5

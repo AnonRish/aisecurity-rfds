@@ -1,0 +1,297 @@
+# Seeded bugs for RFD 033. Run: python scripts/mutation_check.py 33
+# Each entry breaks one claim of the README in one place; the package's tests must notice every one.
+
+# ---- pod.py: membership, manifests, fuses ----------------------------------------------------------------------
+
+[[mutation]]
+name = "manufacturer signature not verified"
+file = "pod.py"
+pattern = 'if len(m.signature) != SIG_BYTES or not verify(mfr_pub, m.digest(), m.signature):'
+replace = 'if len(m.signature) != SIG_BYTES:'
+
+[[mutation]]
+name = "chip need not be listed in its own manifest"
+file = "pod.py"
+pattern = 'if self.device_id not in m.members:'
+replace = 'if False:'
+
+[[mutation]]
+name = "generation floor accepts an equal generation"
+file = "pod.py"
+pattern = 'if m.generation <= self.generation:'
+replace = 'if m.generation < self.generation:'
+
+[[mutation]]
+name = "pod size cap ignored"
+file = "pod.py"
+pattern = 'if not m.members or len(m.members) > cap:'
+replace = 'if not m.members:'
+
+[[mutation]]
+name = "member list need not be sorted and unique"
+file = "pod.py"
+pattern = 'if list(m.members) != sorted(set(m.members)):'
+replace = 'if False:'
+
+[[mutation]]
+name = "pod binding ignored when provisioning"
+file = "pod.py"
+pattern = 'if bound is not None and bound != m.pod_id:'
+replace = 'if False:'
+
+[[mutation]]
+name = "dead chip still accepts a manifest"
+file = "pod.py"
+pattern = '''if self.dead:
+            raise ProvisionError("chip is dead")'''
+replace = '''if False:
+            raise ProvisionError("chip is dead")'''
+
+[[mutation]]
+name = "boot trusts a flash manifest older than the fuses"
+file = "pod.py"
+pattern = 'if m.generation < self.generation:'
+replace = 'if False:'
+
+[[mutation]]
+name = "boot ignores the fuse pod binding"
+file = "pod.py"
+pattern = '''if bound is not None and bound != m.pod_id:
+            return'''
+replace = '''if False:
+            return'''
+
+[[mutation]]
+name = "release replay not caught by the generation floor"
+file = "pod.py"
+pattern = 'if r.generation <= self.generation:'
+replace = 'if False:'
+
+[[mutation]]
+name = "fuse-bound chip can be released"
+file = "pod.py"
+pattern = '''if self._bind_in_fuses:
+            raise ProvisionError("a fuse-bound chip cannot be released")'''
+replace = '''if False:
+            raise ProvisionError("a fuse-bound chip cannot be released")'''
+
+[[mutation]]
+name = "tamper response burns no fuse"
+file = "pod.py"
+pattern = '''try:
+            self._gen.increment()
+        except CounterExhaustedError:'''
+replace = '''try:
+            pass
+        except CounterExhaustedError:'''
+
+[[mutation]]
+name = "tamper response leaves the flash manifest in place"
+file = "pod.py"
+pattern = '''self._manifest_rec.write(b"")
+        try:'''
+replace = '''pass
+        try:'''
+
+# ---- pod.py: handshake and links ---------------------------------------------------------------------------------
+
+[[mutation]]
+name = "peer need not be in the manifest"
+file = "pod.py"
+pattern = 'if device not in m.members:'
+replace = 'if False:'
+
+[[mutation]]
+name = "a chip's own identity is not refused"
+file = "pod.py"
+pattern = 'if device == self.device_id:'
+replace = 'if False:'
+
+[[mutation]]
+name = "hello may name a different pod"
+file = "pod.py"
+pattern = 'if pod_id != m.pod_id:'
+replace = 'if False:'
+
+[[mutation]]
+name = "initiator signature not checked"
+file = "pod.py"
+pattern = 'if not verify(initiator, _role_digest("initiator", f.transcript), f.signature):'
+replace = 'if False:'
+
+[[mutation]]
+name = "responder signature not checked"
+file = "pod.py"
+pattern = 'if not verify(h2.device, _role_digest("responder", th), h2.signature):'
+replace = 'if False:'
+
+[[mutation]]
+name = "both roles sign the same digest"
+file = "pod.py"
+pattern = 'return domain_hash(f"rfd033/handshake-signature/{role}", transcript)'
+replace = 'return domain_hash("rfd033/handshake-signature/any", transcript)'
+
+[[mutation]]
+name = "links never expire"
+file = "pod.py"
+pattern = 'if self._tick - link.established_tick >= self._reverify_interval:'
+replace = 'if False:'
+
+[[mutation]]
+name = "link mode ignores later removal from the manifest"
+file = "pod.py"
+pattern = 'if peer not in self._manifest.members:'
+replace = 'if False:'
+
+[[mutation]]
+name = "half-open handshakes are not bounded"
+file = "pod.py"
+pattern = 'while len(table) > MAX_PENDING:'
+replace = 'while False:'
+
+[[mutation]]
+name = "responder never adopts a newer manifest"
+file = "pod.py"
+pattern = '''self._maybe_adopt(h.manifest)
+        self._require_peer(h.device, h.pod_id)'''
+replace = '''self._require_peer(h.device, h.pod_id)'''
+
+[[mutation]]
+name = "clock can be wound back"
+file = "pod.py"
+pattern = '''if n < 0:
+            raise ValueError("time does not run backwards")'''
+replace = '''if False:
+            raise ValueError("time does not run backwards")'''
+
+# ---- limiter.py --------------------------------------------------------------------------------------------------
+
+[[mutation]]
+name = "token bucket accepts a clock that goes backwards"
+file = "limiter.py"
+pattern = 'if now_ns > self._last:  # a clock that goes backwards earns nothing and does not lower the mark'
+replace = 'if True:'
+
+[[mutation]]
+name = "token bucket has no burst cap"
+file = "limiter.py"
+pattern = 'self._credit = min(self._cap, self._credit + self.rate_bps * (now_ns - self._last))'
+replace = 'self._credit = self._credit + self.rate_bps * (now_ns - self._last)'
+
+[[mutation]]
+name = "partial bytes rounded up"
+file = "limiter.py"
+pattern = 'grant = min(nbytes, self._credit // NS)'
+replace = 'grant = min(nbytes, -(-self._credit // NS))'
+
+[[mutation]]
+name = "one external bucket per destination"
+file = "limiter.py"
+pattern = 'bucket = self.internal if self.chip.link_mode(dest) is LinkMode.HIGH else self.external'
+replace = 'bucket = self.internal if self.chip.link_mode(dest) is LinkMode.HIGH else self.__dict__.setdefault(dest.hex(), TokenBucket(self.external.rate_bps, self.external.burst_bytes))'
+
+[[mutation]]
+name = "every peer gets the pod rate"
+file = "limiter.py"
+pattern = 'bucket = self.internal if self.chip.link_mode(dest) is LinkMode.HIGH else self.external'
+replace = 'bucket = self.internal'
+
+# ---- gate.py and cluster.py ---------------------------------------------------------------------------------------
+
+[[mutation]]
+name = "key-gated receiver lets replayed frames through as errors"
+file = "gate.py"
+pattern = 'except (LinkDownError, DecryptionError, ReplayError):'
+replace = 'except (LinkDownError, DecryptionError):'
+
+[[mutation]]
+name = "compromised firmware no longer reports HIGH"
+file = "gate.py"
+pattern = 'return LinkMode.HIGH'
+replace = 'return super().link_mode(peer)'
+
+[[mutation]]
+name = "stolen identities are not fused into one device"
+file = "cluster.py"
+pattern = 'union(group[0], other)'
+replace = 'pass'
+
+# ---- training.py, podsize.py, inference.py ------------------------------------------------------------------------
+
+[[mutation]]
+name = "ring factor loses its factor of two"
+file = "training.py"
+pattern = 'return 2.0 * (p - 1.0) / p'
+replace = 'return (p - 1.0) / p'
+
+[[mutation]]
+name = "pipeline carries one vector per token instead of two"
+file = "training.py"
+pattern = 'PIPELINE_VECTORS_PER_TOKEN = 2.0'
+replace = 'PIPELINE_VECTORS_PER_TOKEN = 1.0'
+
+[[mutation]]
+name = "training costs four FLOPs per parameter per token"
+file = "training.py"
+pattern = 'FLOPS_PER_PARAM_TOKEN = 6.0'
+replace = 'FLOPS_PER_PARAM_TOKEN = 4.0'
+
+[[mutation]]
+name = "memory no longer forces cross-pod model parallelism"
+file = "training.py"
+pattern = 'return max(1, math.ceil(run.model.n_params * run.state_bytes_per_param / (pod_size * hw.mem_bytes)))'
+replace = 'return 1'
+
+[[mutation]]
+name = "overlap assumed even when switched off"
+file = "training.py"
+pattern = 'return np.maximum(t_c, t_m) if overlap else t_c + t_m'
+replace = 'return np.maximum(t_c, t_m)'
+
+[[mutation]]
+name = "per-pod cap scales with pod size"
+file = "training.py"
+pattern = '''if self.scope == "per_pod":
+            return self.per_chip_bps'''
+replace = '''if self.scope == "per_pod":
+            return self.per_chip_bps * pod_size'''
+
+[[mutation]]
+name = "bisection moves the wrong bound"
+file = "training.py"
+pattern = '''if cost_multiplier(run, hw, pod_size, External(mid, scope), deadline_s, **kw) > multiplier:
+            lo = mid'''
+replace = '''if cost_multiplier(run, hw, pod_size, External(mid, scope), deadline_s, **kw) <= multiplier:
+            lo = mid'''
+
+[[mutation]]
+name = "data-parallel break-even forgets the first replica"
+file = "training.py"
+pattern = 'return (replicas - 1) * run.grad_bytes * hw.effective_flops / ('
+replace = 'return replicas * run.grad_bytes * hw.effective_flops / ('
+
+[[mutation]]
+name = "years to reach a target use the natural logarithm"
+file = "podsize.py"
+pattern = 'return doubling_years * math.log2(target_compute / have)'
+replace = 'return doubling_years * math.log(target_compute / have)'
+
+[[mutation]]
+name = "serving and training boundary bytes swapped"
+file = "inference.py"
+pattern = 'vectors = PIPELINE_VECTORS_PER_TOKEN if training else 1.0'
+replace = 'vectors = 1.0 if training else PIPELINE_VECTORS_PER_TOKEN'
+
+# ---- scenarios.py (the attack table must exercise what it says) ---------------------------------------------------
+
+[[mutation]]
+name = "starved-burn scenario does not starve the burn"
+file = "scenarios.py"
+pattern = 'chip.fuses.hv_disrupted = True'
+replace = 'chip.fuses.hv_disrupted = False'
+
+[[mutation]]
+name = "members never start handshakes, so nothing spreads"
+file = "scenarios.py"
+pattern = 'for c in [*kept, removed]:'
+replace = 'for c in [removed]:'
