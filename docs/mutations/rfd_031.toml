@@ -1,0 +1,650 @@
+# Seeded bugs for RFD 031. Run: python scripts/mutation_check.py 31
+# Each entry breaks one claim of the README in one place; the package's tests must notice every one.
+
+# ---- smt.py: the registry database ---------------------------------------------------------------------------------
+
+[[mutation]]
+name = "a leaf does not commit to where the key ends"
+file = "smt.py"
+pattern = 'b"\x00" + len(key).to_bytes(4, "big") + key + value'
+replace = 'b"\x00" + key + value'
+
+[[mutation]]
+name = "a node hash ignores which child is left"
+file = "smt.py"
+pattern = 'return sha256(b"\x01" + left + right)'
+replace = 'return sha256(b"\x01" + min(left, right) + max(left, right))'
+
+[[mutation]]
+name = "leaves and nodes share a hash domain"
+file = "smt.py"
+pattern = 'return sha256(b"\x01" + left + right)'
+replace = 'return sha256(b"\x00" + left + right)'
+
+[[mutation]]
+name = "a key's position uses half the hash bits"
+file = "smt.py"
+pattern = '[: DEPTH // 8]'
+replace = '[: DEPTH // 16]'
+
+[[mutation]]
+name = "a proof of absence is checked against the key's own leaf"
+file = "smt.py"
+pattern = 'h = EMPTY_LEAF if value is None else _leaf(key, value)'
+replace = 'h = _leaf(key, value or b"")'
+
+[[mutation]]
+name = "a bitmap with bits beyond the depth is accepted"
+file = "smt.py"
+pattern = 'if proof.bitmap >> DEPTH or bin(proof.bitmap).count("1") != len(proof.siblings):'
+replace = 'if bin(proof.bitmap).count("1") != len(proof.siblings):'
+
+[[mutation]]
+name = "a bitmap that disagrees with the siblings is accepted"
+file = "smt.py"
+pattern = 'or bin(proof.bitmap).count("1") != len(proof.siblings)'
+replace = ''
+
+[[mutation]]
+name = "two keys at one position are not refused"
+file = "smt.py"
+pattern = 'if held is not None and held[0] != key:'
+replace = 'if False:'
+
+[[mutation]]
+name = "get returns the value of a different key at the same position"
+file = "smt.py"
+pattern = 'return item[1] if item is not None and item[0] == key else None'
+replace = 'return item[1] if item is not None else None'
+
+[[mutation]]
+name = "the empty map's root is not the default of full depth"
+file = "smt.py"
+pattern = 'return self._nodes.get((DEPTH, 0), _DEFAULTS[DEPTH])'
+replace = 'return self._nodes.get((DEPTH, 0), EMPTY_LEAF)'
+
+[[mutation]]
+name = "proof size leaves out the bitmap"
+file = "smt.py"
+pattern = 'return DEPTH // 8 + 32 * len(self.siblings)'
+replace = 'return 32 * len(self.siblings)'
+
+# ---- identity.py: identifiers, the counter tripwire, PUF and glitter ------------------------------------------------
+
+[[mutation]]
+name = "the chip id is hashed in another domain"
+file = "identity.py"
+pattern = 'return domain_hash("rfd031.chip-id", public_key)'
+replace = 'return domain_hash("rfd031.other", public_key)'
+
+[[mutation]]
+name = "an attestation does not sign the counter"
+file = "identity.py"
+pattern = 'return domain_hash("rfd031.attestation", chip_id, challenge, u64(counter))'
+replace = 'return domain_hash("rfd031.attestation", chip_id, challenge)'
+
+[[mutation]]
+name = "an attestation is accepted for any challenge"
+file = "identity.py"
+pattern = 'and attestation.challenge == challenge'
+replace = 'and True'
+
+[[mutation]]
+name = "an attestation is accepted under another chip id"
+file = "identity.py"
+pattern = 'attestation.chip_id == chip_id_of(public_key)'
+replace = 'True'
+
+[[mutation]]
+name = "the chip's counter does not rise"
+file = "identity.py"
+pattern = 'self._counter += 1'
+replace = 'self._counter += 0'
+
+[[mutation]]
+name = "a copy may start behind the original"
+file = "identity.py"
+pattern = 'if advance < 0:'
+replace = 'if advance < -10:'
+
+[[mutation]]
+name = "a copy starts at the advance, not at the original's counter"
+file = "identity.py"
+pattern = 'return DeviceKeyChip(self._seed, self._counter + advance)'
+replace = 'return DeviceKeyChip(self._seed, advance)'
+
+[[mutation]]
+name = "the tracker accepts a repeated counter"
+file = "identity.py"
+pattern = 'if attestation.counter > self.last(attestation.chip_id):'
+replace = 'if attestation.counter >= self.last(attestation.chip_id):'
+
+[[mutation]]
+name = "the tracker keeps one counter for all chips"
+file = "identity.py"
+pattern = 'return self._last.get(chip_id, 0)'
+replace = 'return max(self._last.values(), default=0)'
+
+[[mutation]]
+name = "the careful-copy closed form drops a term"
+file = "identity.py"
+pattern = 'for a in range(events + 1))'
+replace = 'for a in range(events))'
+
+[[mutation]]
+name = "the level-copy closed form drops the original's term"
+file = "identity.py"
+pattern = 'return 0.0 if events == 0 else 1.0 - q**events - (1.0 - q) ** events'
+replace = 'return 0.0 if events == 0 else 1.0 - q**events'
+
+[[mutation]]
+name = "the enumeration starts a careful copy too close"
+file = "identity.py"
+pattern = 'advance = 10**6 if careful else 0'
+replace = 'advance = 1 if careful else 0'
+
+[[mutation]]
+name = "the PUF false-accept tail uses a biased coin"
+file = "identity.py"
+pattern = 'n_cells, 0.5))'
+replace = 'n_cells, 0.4))'
+
+[[mutation]]
+name = "a PUF chip attests when its key did not reproduce"
+file = "identity.py"
+pattern = 'if not reproduced:'
+replace = 'if False:'
+
+[[mutation]]
+name = "glitter matching does not wrap around the torus"
+file = "identity.py"
+pattern = 'delta = np.minimum(delta, 1.0 - delta)'
+replace = 'delta = delta'
+
+[[mutation]]
+name = "a flake exactly on the radius does not match"
+file = "identity.py"
+pattern = 'return float(np.mean(nearest <= radius**2))'
+replace = 'return float(np.mean(nearest < radius**2))'
+
+[[mutation]]
+name = "a photograph is not wrapped onto the torus"
+file = "identity.py"
+pattern = 'size=tag.shape)) % 1.0'
+replace = 'size=tag.shape))'
+
+[[mutation]]
+name = "the glitter acceptance count is rounded up with float noise"
+file = "identity.py"
+pattern = 'need = int(np.ceil(threshold * n_flakes - 1e-12))'
+replace = 'need = int(np.ceil(threshold * n_flakes))'
+
+[[mutation]]
+name = "the chance a flake finds its own photograph uses sigma, not 2 sigma squared"
+file = "identity.py"
+pattern = 'own = 1.0 - np.exp(-(radius**2) / (2.0 * sigma**2))'
+replace = 'own = 1.0 - np.exp(-(radius**2) / (sigma**2))'
+
+# ---- registry.py: the rules of the update protocol ------------------------------------------------------------------
+
+[[mutation]]
+name = "enrolment needs no approved manufacturer"
+file = "registry.py"
+pattern = 'if manufacturer is None:'
+replace = 'if False:'
+
+[[mutation]]
+name = "the chip id need not be the hash of the key"
+file = "registry.py"
+pattern = 'if len(public_key) != KEY_BYTES or chip_id_of(public_key) != req.chip_id:'
+replace = 'if len(public_key) != KEY_BYTES:'
+
+[[mutation]]
+name = "a chip can be enrolled twice"
+file = "registry.py"
+pattern = 'if prev is not None:'
+replace = 'if False:'
+
+[[mutation]]
+name = "enrolment may start from any version"
+file = "registry.py"
+pattern = 'if req.expected_version != 0:'
+replace = 'if False:'
+
+[[mutation]]
+name = "anyone can put a chip up for sale"
+file = "registry.py"
+pattern = 'raise Rejected("unauthorised", "only the registered owner can sell")'
+replace = 'pass'
+
+[[mutation]]
+name = "an owner can sell to itself"
+file = "registry.py"
+pattern = 'if len(buyer) != KEY_BYTES or buyer == prev.owner:'
+replace = 'if len(buyer) != KEY_BYTES:'
+
+[[mutation]]
+name = "an offer may expire at the moment it is made"
+file = "registry.py"
+pattern = 'if not now < expires <= now + policy.max_transfer_window:'
+replace = 'if not now <= expires <= now + policy.max_transfer_window:'
+
+[[mutation]]
+name = "an offer may not run for the whole window"
+file = "registry.py"
+pattern = 'if not now < expires <= now + policy.max_transfer_window:'
+replace = 'if not now < expires < now + policy.max_transfer_window:'
+
+[[mutation]]
+name = "anyone can complete a transfer"
+file = "registry.py"
+pattern = 'raise Rejected("unauthorised", "only the named buyer can complete the transfer")'
+replace = 'pass'
+
+[[mutation]]
+name = "an offer lapses at its deadline, not after it"
+file = "registry.py"
+pattern = 'if now > prev.pending_until:'
+replace = 'if now >= prev.pending_until:'
+
+[[mutation]]
+name = "completion needs no attestation from the chip"
+file = "registry.py"
+pattern = 'if not verify_attestation(prev.public_key, transfer_challenge(prev), _transfer_attestation(prev, req)):'
+replace = 'if False:'
+
+[[mutation]]
+name = "the transfer challenge leaves out the deadline"
+file = "registry.py"
+pattern = 'record.pending_buyer, u64(record.pending_until)'
+replace = 'record.pending_buyer'
+
+[[mutation]]
+name = "a completed sale keeps the seller's location commitment"
+file = "registry.py"
+pattern = 'location_commitment=b"",'
+replace = ''
+
+[[mutation]]
+name = "the owner can withdraw an offer at its deadline"
+file = "registry.py"
+pattern = 'if now <= prev.pending_until:'
+replace = 'if now < prev.pending_until:'
+
+[[mutation]]
+name = "the owner can withdraw an offer before it lapses"
+file = "registry.py"
+pattern = 'if now <= prev.pending_until:'
+replace = 'if False:'
+
+[[mutation]]
+name = "a stranger can cancel a transfer"
+file = "registry.py"
+pattern = 'raise Rejected("unauthorised", "only the buyer or the owner can cancel")'
+replace = 'pass'
+
+[[mutation]]
+name = "a chip in transit can be relocated"
+file = "registry.py"
+pattern = 'raise Rejected("bad-state", "only an active chip can be relocated")'
+replace = 'pass'
+
+[[mutation]]
+name = "anyone can retire a chip"
+file = "registry.py"
+pattern = 'raise Rejected("unauthorised", "only the registered owner can retire a chip")'
+replace = 'pass'
+
+[[mutation]]
+name = "a retirement may give any reason"
+file = "registry.py"
+pattern = 'if reason not in RETIRE_REASONS:'
+replace = 'if False:'
+
+[[mutation]]
+name = "destruction needs no accredited witness"
+file = "registry.py"
+pattern = 'if reason == "destroyed" and policy.destruction_witnesses:'
+replace = 'if False:'
+
+[[mutation]]
+name = "a retired chip can still be changed"
+file = "registry.py"
+pattern = 'if prev.status == RETIRED:'
+replace = 'if False:'
+
+[[mutation]]
+name = "a request for an old version is applied"
+file = "registry.py"
+pattern = 'if req.expected_version != prev.version:'
+replace = 'if False:'
+
+[[mutation]]
+name = "an embargoed jurisdiction is accepted"
+file = "registry.py"
+pattern = 'if value in policy.embargoed:'
+replace = 'if False:'
+
+[[mutation]]
+name = "the clock may run backwards"
+file = "registry.py"
+pattern = 'if now < self._last_time:'
+replace = 'if False:'
+
+[[mutation]]
+name = "the clock may not stand still"
+file = "registry.py"
+pattern = 'if now < self._last_time:'
+replace = 'if now <= self._last_time:'
+
+[[mutation]]
+name = "the operator does not check the counter on a transfer"
+file = "registry.py"
+pattern = 'if self.tracker.observe(attestation) != FRESH:'
+replace = 'if False:'
+
+[[mutation]]
+name = "the map is not updated when a request is accepted"
+file = "registry.py"
+pattern = 'self._map.set(record.chip_id, record.encode())'
+replace = 'pass'
+
+[[mutation]]
+name = "a chip's history is filed under no chip"
+file = "registry.py"
+pattern = 'self._by_chip.setdefault(record.chip_id, []).append(entry.index)'
+replace = 'self._by_chip.setdefault(b"", []).append(entry.index)'
+
+[[mutation]]
+name = "a tree head does not commit to its time"
+file = "registry.py"
+pattern = 'log_root, map_root, u64(timestamp))'
+replace = 'log_root, map_root)'
+
+[[mutation]]
+name = "an inspector's unknown chip raises no alert"
+file = "registry.py"
+pattern = 'alerts = [Alert("unknown-chip", chip_id, now)]'
+replace = 'alerts = []'
+
+[[mutation]]
+name = "an attestation that does not verify raises no alert"
+file = "registry.py"
+pattern = 'elif not verify_attestation(record.public_key, challenge, attestation):'
+replace = 'elif False:'
+
+[[mutation]]
+name = "a retired chip that attests raises no alert"
+file = "registry.py"
+pattern = 'if record.status == RETIRED:'
+replace = 'if False:'
+
+[[mutation]]
+name = "an audit does not compare an entry's record with what its request produces"
+file = "registry.py"
+pattern = 'problems.append(f"entry {i} records a state its request does not produce")'
+replace = 'pass'
+
+[[mutation]]
+name = "anyone can relocate a chip"
+file = "registry.py"
+pattern = 'raise Rejected("unauthorised", "only the registered owner can update the location")'
+replace = 'pass'
+
+[[mutation]]
+name = "a chip with a transfer pending can be retired"
+file = "registry.py"
+pattern = 'raise Rejected("bad-state", "cancel the pending transfer before retiring")'
+replace = 'pass'
+
+[[mutation]]
+name = "a completed sale is not checked against the embargo list"
+file = "registry.py"
+pattern = 'jurisdiction = _jurisdiction(req, policy)'
+replace = 'jurisdiction = req.get("jurisdiction").decode()'
+
+# ---- registry.py: what a client and an auditor check -----------------------------------------------------------------
+
+[[mutation]]
+name = "a query accepts a stale head"
+file = "registry.py"
+pattern = 'if now - sth.timestamp > max_age:'
+replace = 'if False:'
+
+[[mutation]]
+name = "a query refuses a head exactly at the age limit"
+file = "registry.py"
+pattern = 'if now - sth.timestamp > max_age:'
+replace = 'if now - sth.timestamp >= max_age:'
+
+[[mutation]]
+name = "a query accepts a head from the future"
+file = "registry.py"
+pattern = 'if sth.timestamp - now > max_skew:'
+replace = 'if False:'
+
+[[mutation]]
+name = "a query refuses a head exactly at the skew limit"
+file = "registry.py"
+pattern = 'if sth.timestamp - now > max_skew:'
+replace = 'if sth.timestamp - now >= max_skew:'
+
+[[mutation]]
+name = "a query accepts another chip's record"
+file = "registry.py"
+pattern = 'if record is not None and record.chip_id != response.chip_id:'
+replace = 'if False:'
+
+[[mutation]]
+name = "a history may come from a different head than the query"
+file = "registry.py"
+pattern = 'if (sth.size, sth.log_root, sth.map_root) != (cur.size, cur.log_root, cur.map_root):'
+replace = 'if False:'
+
+[[mutation]]
+name = "a history entry need not be in the log"
+file = "registry.py"
+pattern = 'if entry.index >= sth.size or not verify_inclusion(entry.encode(), entry.index, sth.size, list(item.proof), sth.log_root):'
+replace = 'if entry.index >= sth.size:'
+
+[[mutation]]
+name = "a history need not end in the record the map proves"
+file = "registry.py"
+pattern = 'if prev != current.record:'
+replace = 'if False:'
+
+[[mutation]]
+name = "a history entry may record a state its request does not produce"
+file = "registry.py"
+pattern = 'if rebuilt != entry.record_after:'
+replace = 'if False:'
+
+[[mutation]]
+name = "a history does not check the transfer counters"
+file = "registry.py"
+pattern = 'if tracker.observe(_transfer_attestation(prev, entry.signed.request)) != FRESH:'
+replace = 'if False:'
+
+[[mutation]]
+name = "an audit does not check the head's signature"
+file = "registry.py"
+pattern = 'problems.append("head signature is invalid")'
+replace = 'pass'
+
+[[mutation]]
+name = "an audit does not compare the log root with the head"
+file = "registry.py"
+pattern = 'if log.root() != sth.log_root:'
+replace = 'if False:'
+
+[[mutation]]
+name = "an audit does not compare the map root with the head"
+file = "registry.py"
+pattern = 'if smap.root() != sth.map_root:'
+replace = 'if False:'
+
+[[mutation]]
+name = "an audit does not compare log roots with earlier heads"
+file = "registry.py"
+pattern = 'if head.size == size and log.root() != head.log_root:'
+replace = 'if False:'
+
+[[mutation]]
+name = "an audit does not compare map roots with earlier heads"
+file = "registry.py"
+pattern = 'if head.size == size and smap.root() != head.map_root:'
+replace = 'if False:'
+
+[[mutation]]
+name = "an audit lets an entry be dated before a head published without it"
+file = "registry.py"
+pattern = 'if any(h.size <= i and entry.timestamp < h.timestamp for h in prior_heads):'
+replace = 'if False:'
+
+[[mutation]]
+name = "an audit lets an entry be dated after the head that covers it"
+file = "registry.py"
+pattern = 'if any(h.size > i and entry.timestamp > h.timestamp for h in prior_heads):'
+replace = 'if False:'
+
+[[mutation]]
+name = "an audit allows time to run backwards through the log"
+file = "registry.py"
+pattern = 'if entry.timestamp < last_time:'
+replace = 'if False:'
+
+[[mutation]]
+name = "an audit does not check entry numbers"
+file = "registry.py"
+pattern = 'if entry.index != i:'
+replace = 'if False:'
+
+[[mutation]]
+name = "an audit does not check the transfer counters"
+file = "registry.py"
+pattern = 'if tracker.observe(_transfer_attestation(before, entry.signed.request)) != FRESH:'
+replace = 'if False:'
+
+# ---- witness.py: cosigning and quorums ------------------------------------------------------------------------------
+
+[[mutation]]
+name = "a witness cosigns a head the operator did not sign"
+file = "witness.py"
+pattern = 'if not sth.verify(self._operator):'
+replace = 'if False:'
+
+[[mutation]]
+name = "a witness cosigns a head from the future"
+file = "witness.py"
+pattern = 'if sth.timestamp - now > self._max_skew:'
+replace = 'if False:'
+
+[[mutation]]
+name = "a witness cosigns a head older than the last one"
+file = "witness.py"
+pattern = 'if sth.timestamp < last.timestamp:'
+replace = 'if False:'
+
+[[mutation]]
+name = "a witness cosigns a shorter log"
+file = "witness.py"
+pattern = 'if sth.size < last.size:'
+replace = 'if False:'
+
+[[mutation]]
+name = "a witness cosigns two different heads of one size"
+file = "witness.py"
+pattern = 'if (sth.log_root, sth.map_root) != (last.log_root, last.map_root):'
+replace = 'if False:'
+
+[[mutation]]
+name = "a witness ignores a changed map root"
+file = "witness.py"
+pattern = 'if (sth.log_root, sth.map_root) != (last.log_root, last.map_root):'
+replace = 'if sth.log_root != last.log_root:'
+
+[[mutation]]
+name = "a witness cosigns a head that does not extend its last"
+file = "witness.py"
+pattern = 'not verify_consistency(last.size, sth.size, last.log_root, sth.log_root, list(proof))'
+replace = 'False'
+
+[[mutation]]
+name = "a quorum counts one witness twice"
+file = "witness.py"
+pattern = 'valid = {pk for pk, sig in head.cosignatures if pk in self.witnesses and verify(pk, message, sig)}'
+replace = 'valid = [pk for pk, sig in head.cosignatures if pk in self.witnesses and verify(pk, message, sig)]'
+
+[[mutation]]
+name = "a quorum counts witnesses it does not know"
+file = "witness.py"
+pattern = 'if pk in self.witnesses and verify(pk, message, sig)'
+replace = 'if verify(pk, message, sig)'
+
+[[mutation]]
+name = "a quorum needs one cosignature more than its threshold"
+file = "witness.py"
+pattern = 'return len(valid) >= self.threshold'
+replace = 'return len(valid) > self.threshold'
+
+[[mutation]]
+name = "a quorum accepts a head the operator did not sign"
+file = "witness.py"
+pattern = 'if not head.sth.verify(operator_public_key):'
+replace = 'if False:'
+
+[[mutation]]
+name = "the fork formula is one colluder short"
+file = "witness.py"
+pattern = 'return max(0, 2 * t - n)'
+replace = 'return max(0, 2 * t - n - 1)'
+
+[[mutation]]
+name = "the liveness margin is one witness too generous"
+file = "witness.py"
+pattern = 'return n - t'
+replace = 'return n - t + 1'
+
+[[mutation]]
+name = "a threshold of zero is allowed"
+file = "witness.py"
+pattern = 'if not 1 <= t <= n:'
+replace = 'if not 0 <= t <= n:'
+
+# ---- location.py: commitments and audits ----------------------------------------------------------------------------
+
+[[mutation]]
+name = "a location commitment leaves out the salt"
+file = "location.py"
+pattern = 'return domain_hash("rfd031.location", facility.encode(), salt)'
+replace = 'return domain_hash("rfd031.location", facility.encode())'
+
+[[mutation]]
+name = "the dictionary work ignores the salt length"
+file = "location.py"
+pattern = 'return candidates * 256**salt_bytes'
+replace = 'return candidates * 255**salt_bytes'
+
+[[mutation]]
+name = "the dictionary attack skips the last salt"
+file = "location.py"
+pattern = 'for value in range(256**salt_bytes):'
+replace = 'for value in range(256**salt_bytes - 1):'
+
+[[mutation]]
+name = "the detection probability is the miss probability"
+file = "location.py"
+pattern = 'return 1.0 - hypergeom_miss_probability(total, ghosts, sampled)'
+replace = 'return hypergeom_miss_probability(total, ghosts, sampled)'
+
+[[mutation]]
+name = "a facility vouches for a chip under the wrong public key"
+file = "location.py"
+pattern = 'return chip is not None and verify_attestation(public_key, challenge, chip.attest(challenge))'
+replace = 'return chip is not None'
+
+[[mutation]]
+name = "an audit returns the chips that passed"
+file = "location.py"
+pattern = 'return [i for i in sample if not facility.inspect('
+replace = 'return [i for i in sample if facility.inspect('

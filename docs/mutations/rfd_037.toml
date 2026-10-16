@@ -1,0 +1,524 @@
+# Seeded bugs for RFD 037. Run: python scripts/mutation_check.py 37
+# Each entry breaks one claim of the README in one place; the package's tests must notice every one.
+
+# ---- binning.py: yield model, planners, cost arithmetic ---------------------------------------------------------
+
+[[mutation]]
+name = "dies per wafer ignores the edge loss"
+file = "binning.py"
+pattern = '- math.pi * wafer_mm / math.sqrt(2.0 * area_mm2)'
+replace = '- 0.0'
+
+[[mutation]]
+name = "dies per wafer rounds up"
+file = "binning.py"
+pattern = 'return max(0, math.floor(n))'
+replace = 'return max(0, math.ceil(n))'
+
+[[mutation]]
+name = "region survival uses the Poisson formula"
+file = "binning.py"
+pattern = 'return float((1.0 + lam / proc.alpha) ** (-proc.alpha))'
+replace = 'return float(math.exp(-lam))'
+
+[[mutation]]
+name = "quadrature weights not divided by Gamma(alpha)"
+file = "binning.py"
+pattern = 'return x, w / special.gamma(alpha)'
+replace = 'return x, w'
+
+[[mutation]]
+name = "quadrature nodes not scaled to the die's defect exponent"
+file = "binning.py"
+pattern = 'scale = 1.0 + proc.d0_per_cm2 * die.area_mm2 / 100.0 / proc.alpha'
+replace = 'scale = 1.0'
+
+[[mutation]]
+name = "uncore need not be defect free"
+file = "binning.py"
+pattern = 'u = np.exp(-(proc.d0_per_cm2 * die.uncore_mm2 / 100.0) * g)'
+replace = 'u = np.ones_like(g)'
+
+[[mutation]]
+name = "Monte Carlo density multiplier has the wrong mean"
+file = "binning.py"
+pattern = 'g = rng.gamma(proc.alpha, 1.0 / proc.alpha, size=n)'
+replace = 'g = rng.gamma(proc.alpha, 1.0, size=n)'
+
+[[mutation]]
+name = "binning supply limit uses each tier's share instead of the cumulative share"
+file = "binning.py"
+pattern = 'cum_share = np.cumsum([t.share for t in tiers])'
+replace = 'cum_share = np.array([t.share for t in tiers])'
+
+[[mutation]]
+name = "binding tier is the least binding one"
+file = "binning.py"
+pattern = 'binding = tiers[int(np.argmin(limits))].name'
+replace = 'binding = tiers[int(np.argmax(limits))].name'
+
+[[mutation]]
+name = "latent share counts the top tier's own dies as lower-tier supply"
+file = "binning.py"
+pattern = 'non_top_supply = supply[-1] - supply[0]'
+replace = 'non_top_supply = supply[-1]'
+
+[[mutation]]
+name = "latent share divided by units instead of lower-tier demand"
+file = "binning.py"
+pattern = 'latent = max(0.0, lower_demand - non_top_supply) / lower_demand'
+replace = 'latent = max(0.0, lower_demand - non_top_supply) / units'
+
+[[mutation]]
+name = "safe spares allow a die that reaches the tier above"
+file = "binning.py"
+pattern = 'a.blocks - b.blocks - 1'
+replace = 'a.blocks - b.blocks'
+
+[[mutation]]
+name = "separate dies built without their spare blocks"
+file = "binning.py"
+pattern = 'tier.blocks + per_tier_spares[idx - 1]'
+replace = 'tier.blocks'
+
+[[mutation]]
+name = "separate-dies cost not weighted by demand share"
+file = "binning.py"
+pattern = 'total += tier.share * cost'
+replace = 'total += cost'
+
+[[mutation]]
+name = "separate dies accept spares that reach the tier above"
+file = "binning.py"
+pattern = 'if any(s > m for s, m in zip(per_tier_spares, limits)):'
+replace = 'if False:'
+
+[[mutation]]
+name = "best safe spares never tries the largest safe count"
+file = "binning.py"
+pattern = 'for spare in range(limit + 1):'
+replace = 'for spare in range(limit):'
+
+[[mutation]]
+name = "hybrid sells top-capable dies as by-products"
+file = "binning.py"
+pattern = 'band = n_dies * float(pmf[tiers[idx].blocks : tiers[idx - 1].blocks].sum())'
+replace = 'band = n_dies * float(pmf[tiers[idx].blocks :].sum())'
+
+[[mutation]]
+name = "hybrid top wafers sized by all dies, not top-capable dies"
+file = "binning.py"
+pattern = 'top_wafers = tiers[0].share / top_dies_per_wafer'
+replace = 'top_wafers = tiers[0].share / n_dies'
+
+[[mutation]]
+name = "hybrid by-products used beyond the tier's demand"
+file = "binning.py"
+pattern = 'used = min(pool, tiers[idx].share)'
+replace = 'used = pool'
+
+[[mutation]]
+name = "hybrid by-products not carried to the next lower tier"
+file = "binning.py"
+pattern = 'pool -= used'
+replace = 'pool = 0.0'
+
+[[mutation]]
+name = "break-even volume multiplies instead of dividing"
+file = "binning.py"
+pattern = 'return extra_nre / saving'
+replace = 'return extra_nre * saving'
+
+[[mutation]]
+name = "break-even volume finite when the secure design is dearer"
+file = "binning.py"
+pattern = 'return math.inf'
+replace = 'return 0.0'
+
+[[mutation]]
+name = "one-off cost multiplied by volume"
+file = "binning.py"
+pattern = 'return silicon_per_unit + nre_wafer_equivalents / volume_units'
+replace = 'return silicon_per_unit + nre_wafer_equivalents * volume_units'
+
+[[mutation]]
+name = "silicon premium is a ratio, not a difference from one"
+file = "binning.py"
+pattern = '/ plan_binning(die, proc, tiers).cost_per_unit - 1.0'
+replace = '/ plan_binning(die, proc, tiers).cost_per_unit'
+
+[[mutation]]
+name = "break-even scan looks for no sign change"
+file = "binning.py"
+pattern = '(fa < 0) != (fb < 0)'
+replace = '(fa < 0) == (fb < 0)'
+
+[[mutation]]
+name = "tier shares need not sum to one"
+file = "binning.py"
+pattern = 'if abs(sum(t.share for t in tiers) - 1.0) > 1e-9:'
+replace = 'if False:'
+
+[[mutation]]
+name = "tiers may repeat a block count"
+file = "binning.py"
+pattern = 'if any(a.blocks <= b.blocks for a, b in zip(tiers, tiers[1:])):'
+replace = 'if any(a.blocks < b.blocks for a, b in zip(tiers, tiers[1:])):'
+
+[[mutation]]
+name = "zero clustering parameter accepted"
+file = "binning.py"
+pattern = 'if self.alpha <= 0:'
+replace = 'if self.alpha < 0:'
+
+# ---- mechanisms.py: lockout designs and the attacker model -------------------------------------------------------
+
+[[mutation]]
+name = "majority vote needs half the reads, not more than half"
+file = "mechanisms.py"
+pattern = 'need = reads // 2 + 1'
+replace = 'need = reads // 2'
+
+[[mutation]]
+name = "leftover edits ignore the edits spent forcing the vote"
+file = "mechanisms.py"
+pattern = 'left = attacker.edits - via_edit'
+replace = 'left = attacker.edits'
+
+[[mutation]]
+name = "firmware flag bypass is visible in the report"
+file = "mechanisms.py"
+pattern = 'self._spoof = True  # the report is produced by the same software, so it is forged too'
+replace = 'self._spoof = False'
+
+[[mutation]]
+name = "fuse gate disabled while any copy is burned"
+file = "mechanisms.py"
+pattern = 'self._disabled = int(reads.sum()) * 2 > self.copies'
+replace = 'self._disabled = int(reads.sum()) > 0'
+
+[[mutation]]
+name = "fuse bypass always hides itself"
+file = "mechanisms.py"
+pattern = 'self._spoof = left >= 1'
+replace = 'self._spoof = left >= 0'
+
+[[mutation]]
+name = "even numbers of fuse copies accepted"
+file = "mechanisms.py"
+pattern = 'if copies < 1 or copies % 2 == 0:'
+replace = 'if copies < 1:'
+
+[[mutation]]
+name = "antifuse self-test needs every read to see the response"
+file = "mechanisms.py"
+pattern = 'self._bricked = any(sees_response)'
+replace = 'self._bricked = all(sees_response)'
+
+[[mutation]]
+name = "one edit both bridges the rail and forces the sense line"
+file = "mechanisms.py"
+pattern = 'if attacker.edits >= 2:'
+replace = 'if attacker.edits >= 1:'
+
+[[mutation]]
+name = "antifuse chip works even after its tamper response"
+file = "mechanisms.py"
+pattern = 'return not self._rail_cut and not self._bricked'
+replace = 'return not self._rail_cut'
+
+[[mutation]]
+name = "bound token does not name the device"
+file = "mechanisms.py"
+pattern = 'return domain_hash("rfd037.token.bound", feature, device_id)'
+replace = 'return domain_hash("rfd037.token.bound", feature)'
+
+[[mutation]]
+name = "epoch token signature does not cover the epoch"
+file = "mechanisms.py"
+pattern = 'return domain_hash("rfd037.token.epoch", feature, device_id, u64(epoch))'
+replace = 'return domain_hash("rfd037.token.epoch", feature, device_id)'
+
+[[mutation]]
+name = "token gate never checks the epoch counter"
+file = "mechanisms.py"
+pattern = 'return not (self.variant == "epoch" and token.epoch < self._epoch.value())'
+replace = 'return True'
+
+[[mutation]]
+name = "epoch chip starts with no earlier downgrade"
+file = "mechanisms.py"
+pattern = 'self._epoch.increment()  # the earlier downgrade'
+replace = 'pass  # the earlier downgrade'
+
+[[mutation]]
+name = "the other chip's token is minted for this device"
+file = "mechanisms.py"
+pattern = 'offered.append(self._authority.mint(self.variant, FEATURE, b"chip-B", self._epoch.value()))'
+replace = 'offered.append(self._authority.mint(self.variant, FEATURE, self.device_id, self._epoch.value()))'
+
+[[mutation]]
+name = "token bypass with an edit is visible"
+file = "mechanisms.py"
+pattern = 'self._spoof = attacker.edits >= 1'
+replace = 'self._spoof = False'
+
+[[mutation]]
+name = "manufacturer database holds the restricted feature's key"
+file = "mechanisms.py"
+pattern = 'if feature == BASE_FEATURE:'
+replace = 'if True:'
+
+[[mutation]]
+name = "PUF comparator accepts any presented key"
+file = "mechanisms.py"
+pattern = 'return presented is not None and presented == self._chip_key(feature)'
+replace = 'return presented is not None'
+
+[[mutation]]
+name = "separate die always has the circuits"
+file = "mechanisms.py"
+pattern = 'return self.blocks_present >= self.blocks_needed'
+replace = 'return True'
+
+[[mutation]]
+name = "visible and silent outcomes swapped"
+file = "mechanisms.py"
+pattern = 'return Outcome.SILENT if chip.reports_disabled() else Outcome.VISIBLE'
+replace = 'return Outcome.VISIBLE if chip.reports_disabled() else Outcome.SILENT'
+
+[[mutation]]
+name = "negative edit budgets accepted"
+file = "mechanisms.py"
+pattern = 'if self.glitches < 0 or self.edits < 0:'
+replace = 'if self.glitches < 0:'
+
+# ---- lockout.py: matrix, budgets, random faults, PUF field failures ----------------------------------------------
+
+[[mutation]]
+name = "random-fault vote flip needs one more corrupted read"
+file = "lockout.py"
+pattern = 'per_boot = float(sps.binom.sf(copies // 2, copies, p))'
+replace = 'per_boot = float(sps.binom.sf(copies // 2 + 1, copies, p))'
+
+[[mutation]]
+name = "many boots add probabilities instead of compounding"
+file = "lockout.py"
+pattern = 'return 1.0 - (1.0 - per_boot) ** boots'
+replace = 'return per_boot * boots'
+
+[[mutation]]
+name = "PUF field failures ignore temperature and age"
+file = "lockout.py"
+pattern = 'puf.measure(temperature_c=temperature_c, age_years=age_years, rng=rng)'
+replace = 'puf.measure(rng=rng)'
+
+[[mutation]]
+name = "field failure bound is the lower end of the interval"
+file = "lockout.py"
+pattern = 'return clopper_pearson(self.failures, self.devices)[1]'
+replace = 'return clopper_pearson(self.failures, self.devices)[0]'
+
+[[mutation]]
+name = "budget to hide a bypass accepts a visible one"
+file = "lockout.py"
+pattern = 'if outcome is Outcome.SILENT or (outcome is Outcome.VISIBLE and not silent):'
+replace = 'if outcome is not Outcome.BLOCKED:'
+
+[[mutation]]
+name = "a missing budget prints as zero"
+file = "lockout.py"
+pattern = 'return "-" if value is None else str(value)'
+replace = 'return "0" if value is None else str(value)'
+
+[[mutation]]
+name = "budget search accepts an unknown resource"
+file = "lockout.py"
+pattern = 'if resource not in ("glitches", "edits"):'
+replace = 'if False:'
+
+# ---- rma.py: tier-change model checker ---------------------------------------------------------------------------
+
+[[mutation]]
+name = "physical cap ignored when accepting a token"
+file = "rma.py"
+pattern = 'if tier > target.cap:'
+replace = 'if False:'
+
+[[mutation]]
+name = "tokens not bound to the device in a bound design"
+file = "rma.py"
+pattern = 'if design.device_bound and owner_index != target_index:'
+replace = 'if False:'
+
+[[mutation]]
+name = "epoch revocation never rejects an old token"
+file = "rma.py"
+pattern = 'return not (design.revocation and epoch < target.epoch)'
+replace = 'return True'
+
+[[mutation]]
+name = "downgrade does not advance the epoch"
+file = "rma.py"
+pattern = 'epoch = chip.epoch + 1 if design.revocation else chip.epoch'
+replace = 'epoch = chip.epoch'
+
+[[mutation]]
+name = "upgrade does not update the registry"
+file = "rma.py"
+pattern = 'entitled=t, registry=registry, active=t, issued=issued'
+replace = 'entitled=t, registry=chip.registry, active=t, issued=issued'
+
+[[mutation]]
+name = "downgrade does not update the registry"
+file = "rma.py"
+pattern = 'entitled=t, registry=registry, active=t, epoch=epoch'
+replace = 'entitled=t, registry=chip.registry, active=t, epoch=epoch'
+
+[[mutation]]
+name = "upgrade allowed beyond the physical cap"
+file = "rma.py"
+pattern = 'if chip.entitled < t <= chip.cap:'
+replace = 'if chip.entitled < t:'
+
+[[mutation]]
+name = "per-tier dies can be downgraded in place"
+file = "rma.py"
+pattern = 'if t < chip.entitled and not design.cap_follows_tier:'
+replace = 'if t < chip.entitled:'
+
+[[mutation]]
+name = "epoch counter has one spare step"
+file = "rma.py"
+pattern = 'if design.revocation and chip.epoch >= MAX_EPOCH:'
+replace = 'if design.revocation and chip.epoch > MAX_EPOCH:'
+
+[[mutation]]
+name = "a swapped die keeps the old chip's tokens"
+file = "rma.py"
+pattern = 'put(i, fresh_chip(design, t))'
+replace = 'put(i, replace(fresh_chip(design, t), issued=chip.issued))'
+
+[[mutation]]
+name = "replay also fires for tokens that do not raise the tier"
+file = "rma.py"
+pattern = 'if accepts(design, chip, i, j, tier, epoch) and tier > chip.active:'
+replace = 'if accepts(design, chip, i, j, tier, epoch) and tier != chip.active:'
+
+[[mutation]]
+name = "invariant I1 allows running at the recorded tier plus one"
+file = "rma.py"
+pattern = 'if chip.active > chip.registry:'
+replace = 'if chip.active > chip.registry + 1:'
+
+[[mutation]]
+name = "invariant I2 not checked"
+file = "rma.py"
+pattern = 'if chip.registry != chip.entitled:'
+replace = 'if False:'
+
+[[mutation]]
+name = "the search keeps the last violation, not the shortest"
+file = "rma.py"
+pattern = 'found.setdefault(invariant, Violation(invariant, seen[nxt], detail))'
+replace = 'found[invariant] = Violation(invariant, seen[nxt], detail)'
+
+[[mutation]]
+name = "second chip starts at the middle tier"
+file = "rma.py"
+pattern = 'return (fresh_chip(design, 0), fresh_chip(design, 2))'
+replace = 'return (fresh_chip(design, 0), fresh_chip(design, 1))'
+
+[[mutation]]
+name = "every chip can reach the top tier whatever its die"
+file = "rma.py"
+pattern = 'cap = tier if design.cap_follows_tier else max(TIERS)'
+replace = 'cap = max(TIERS)'
+
+[[mutation]]
+name = "in-place upgrade test is true only if every move is an upgrade"
+file = "rma.py"
+pattern = 'return any(label.startswith("upgrade") for label, _ in successors(design, initial_world(design)))'
+replace = 'return all(label.startswith("upgrade") for label, _ in successors(design, initial_world(design)))'
+
+# ---- audit.py: sampling audits ----------------------------------------------------------------------------------
+
+[[mutation]]
+name = "undetected chips weighted by the detection probability"
+file = "audit.py"
+pattern = '* (1.0 - detect) ** hits'
+replace = '* detect ** hits'
+
+[[mutation]]
+name = "no slack on exact ties in the inspection threshold"
+file = "audit.py"
+pattern = '_SLACK = 1e-8'
+replace = '_SLACK = 0.0'
+
+[[mutation]]
+name = "slack applied the wrong way in the evasion budget"
+file = "audit.py"
+pattern = 'floor = tolerated_miss * (1.0 - _SLACK)'
+replace = 'floor = tolerated_miss * (1.0 + _SLACK)'
+
+[[mutation]]
+name = "destroyed fraction uses the wrong denominator"
+file = "audit.py"
+pattern = 'return inspected / lot'
+replace = 'return inspected / (lot + 1)'
+
+[[mutation]]
+name = "design-file comparison looks at what was fabricated"
+file = "audit.py"
+pattern = 'return lot.declared == reference'
+replace = 'return len(lot.cheated) == 0'
+
+[[mutation]]
+name = "physical audit detects when the draw exceeds the detection probability"
+file = "audit.py"
+pattern = 'rng.random() < detect'
+replace = 'rng.random() > detect'
+
+[[mutation]]
+name = "repeated lots multiply instead of compounding"
+file = "audit.py"
+pattern = 'return miss_probability(lot, cheated, inspected, detect) ** lots'
+replace = 'return miss_probability(lot, cheated, inspected, detect) * lots'
+
+[[mutation]]
+name = "detection probability above one accepted"
+file = "audit.py"
+pattern = 'if not 0.0 <= detect <= 1.0:'
+replace = 'if False:'
+
+[[mutation]]
+name = "weak detection still reports a finite sample size"
+file = "audit.py"
+pattern = 'if miss_probability(lot, cheated, lot, detect) > ceiling:'
+replace = 'if False:'
+
+[[mutation]]
+name = "confidence of one accepted"
+file = "audit.py"
+pattern = 'if cheated < 1 or not 0.0 < confidence < 1.0:'
+replace = 'if cheated < 1:'
+
+# ---- __main__.py: the program whose output the README quotes ----------------------------------------------------
+
+[[mutation]]
+name = "lot size changed in the audit section"
+file = "__main__.py"
+pattern = 'LOT = 100_000'
+replace = 'LOT = 50_000'
+
+[[mutation]]
+name = "defect-density sweep changed"
+file = "__main__.py"
+pattern = 'D0_SWEEP = (0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 4.0)'
+replace = 'D0_SWEEP = (0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 3.0)'
+
+[[mutation]]
+name = "tier-gap sweep changed"
+file = "__main__.py"
+pattern = 'GAPS = (18, 12, 6, 3)'
+replace = 'GAPS = (18, 12, 6, 4)'

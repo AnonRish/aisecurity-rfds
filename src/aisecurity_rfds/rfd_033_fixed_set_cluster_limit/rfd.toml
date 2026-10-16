@@ -1,0 +1,16 @@
+number = 33
+slug = "fixed_set_cluster_limit"
+title = "Fixed Set Cluster Size Limiting"
+author = "RAND Corporation"
+upstream_state = "idea"
+kind = "reference-implementation"
+summary = "Executable pod-membership protocol (signed manifests, fuse generation counter, authenticated handshake), an exact egress limiter, and a closed-form model of what an external bandwidth cap costs someone training or serving a large model across pods."
+not_established = [
+  "Nothing here was measured on real chips, fuses, links or training runs; the bandwidth analysis is a closed-form model whose inputs (chip speed, utilisation, memory, batch size, deadline) are assumptions, and it lets the attacker shrink communication for free.",
+  "The pod-size bound holds only while device keys stay secret: extracting one key from each of m pods merges m pods in the model. How well real secure elements resist extraction is not modelled (see RFDs 026, 028 and 036).",
+  "Manufacturing cost and retrofit to existing chip designs (open questions 5 and 6) are not addressed.",
+  "The RFD's physical row (disabling transceivers), the link layer, latency, pipeline bubbles, stragglers, mixture-of-experts and sharded optimiser state are not modelled.",
+  "The tamper response is irreversible only if its fuse burn takes effect; with a starved burn supply a flash restore undoes it, and a pod binding kept in flash can be rolled back. Both are shown as limitations, not fixed.",
+]
+open_questions_total = 6
+open_questions_addressed = 4

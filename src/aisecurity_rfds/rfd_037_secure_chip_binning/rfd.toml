@@ -1,0 +1,16 @@
+number = 37
+slug = "secure_chip_binning"
+title = "Secure Chip Binning and Feature Lockout"
+author = "RAND Corporation"
+upstream_state = "idea"
+kind = "simulation"
+summary = "Executable models of what binning leaves latent on lower-tier chips and what removing it costs in silicon, of the RFD's lockout mechanisms against attacker budgets, of tier changes after sale (RMA and licensed unlocking), and of sampling audits for absent circuits."
+not_established = [
+  "Nothing here was measured on real dies, fuses, fabs, prices or inspection tools: defect density, die floorplan, tier block counts, demand mix, spare policy, wafer cost and one-off design cost are assumptions, and the sign of the silicon premium flips with how far apart the tiers' block counts are.",
+  "The attacker budgets (fault injections, circuit edits) are counts, not costs: how hard a real fuse bridge, rail reconnection or decision-line edit is, and whether one edit can force a given decision, is not modelled, so the matrix shows what needs what and not how expensive it is.",
+  "Binning here is limited by defects only; real binning also sorts by frequency, leakage and power, and the flexibility lost by committing wafer starts to separate dies is not modelled.",
+  "The audit module takes the per-chip detection probability as an input: how well X-ray, decapping, delayering or functional testing reveal absent or dormant circuits on real chips is not established, nor whether an authority can obtain and inspect chips at the volumes computed.",
+  "The tier-change search assumes a replaced die is destroyed and the registry is a trusted record; return logistics, grey-market resale and a compromised registry are outside it. Open question 4 (legitimate software-limited features) is not addressed.",
+]
+open_questions_total = 5
+open_questions_addressed = 4
