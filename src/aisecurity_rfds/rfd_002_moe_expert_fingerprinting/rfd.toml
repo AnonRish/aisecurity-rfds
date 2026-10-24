@@ -1,0 +1,22 @@
+number = 2
+slug = "moe_expert_fingerprinting"
+title = "MoE Expert Fingerprinting"
+author = "Gabriel Kulp"
+upstream_state = "idea"
+kind = "simulation"
+summary = "A simulation of expert fingerprinting: a small mixture-of-experts language model trained from scratch, an assumed sensor that reports a noisy sum of per-expert signatures, and a naive-Bayes attacker who names each token from the experts that ran, used to measure how many experts must be distinguishable, how a table transfers across quantization, fine-tuning, retraining and signature drift, and what Gumbel routing noise costs in quality and gains in hiding."
+not_established = [
+  "Nothing was measured on a GPU or on a real mixture-of-experts model: the toy (64 tokens, 3 blocks of 16 experts, a first-order synthetic language) and every property of the sensor (random 4-feature expert signatures, additive Gaussian noise, known block boundaries) are assumptions, so whether real experts have physical signatures that a real sensor can tell apart, and at what noise, is not established.",
+  "The toy has no attention, batching or sequence: a token's route varies with a random context vector that says nothing about the next token, whereas a real router sees a contextual hidden state and concurrent requests mix their experts, so recovering text from a real stream, with other tokens and language-model priors, is not modelled.",
+  "The decoder is a naive-Bayes template attacker with a uniform prior, exact white-box tables and exactly known signatures and noise; it is not shown to be the best attacker, so its accuracies are neither a bound on what an attacker can reach in the model nor a worst case for a defender.",
+  "Every figure is one trained model per configuration (one other seed appears in the transfer table), 800 tokens per accuracy and one draw of signatures per row except the spread table, so a sampling error is about 0.01 to 0.02, the draw-to-draw sd of set accuracy is 0.06, and smaller differences are not resolved.",
+  "Transfer is tested only on per-tensor rounding of the toy, fine-tuning on a mixture of two synthetic languages and an independently trained model; calibrated quantization, distillation, pruning, a different number of experts, router retraining and real model versions are not modelled.",
+  "Routing noise is Gumbel noise on the router logits and quality is held-out cross-entropy on the synthetic language; padding, constant-power experts, randomised placement, downstream task quality and the cost in a real model's loss are not studied, and the repeated-observation attacker's access to repeats is an assumption.",
+]
+open_questions_total = 3
+open_questions_addressed = 3
+open_questions = [
+  "How many experts need to be distinguishable for practical token recovery?",
+  "Does expert fingerprinting transfer across model versions or quantization levels?",
+  "Can routing noise be added without degrading model quality?",
+]

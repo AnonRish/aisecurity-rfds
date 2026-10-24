@@ -1,0 +1,794 @@
+# Seeded bugs for RFD 002. Run: python scripts/mutation_check.py 2
+# Each entry breaks one claim of the README in one place; the package's tests must notice every one.
+
+# ---- moe.py: numerics, routing, the forward and backward passes, training, quantization ----------------------------
+
+[[mutation]]
+name = "softmax does not subtract the row maximum"
+file = "moe.py"
+pattern = 'e = np.exp(z - z.max(axis=-1, keepdims=True))'
+replace = 'e = np.exp(z)'
+
+[[mutation]]
+name = "softmax normalises by the grand total"
+file = "moe.py"
+pattern = 'return e / e.sum(axis=-1, keepdims=True)'
+replace = 'return e / e.sum()'
+
+[[mutation]]
+name = "top-k picks the smallest entries"
+file = "moe.py"
+pattern = 'np.argpartition(-scores, k - 1, axis=1)[:, :k]'
+replace = 'np.argpartition(scores, k - 1, axis=1)[:, :k]'
+
+[[mutation]]
+name = "top-k leaves the chosen indices unsorted"
+file = "moe.py"
+pattern = 'return np.sort(np.argpartition(-scores, k - 1, axis=1)[:, :k], axis=1)'
+replace = 'return np.argpartition(-scores, k - 1, axis=1)[:, :k]'
+
+[[mutation]]
+name = "a negative context scale is accepted"
+file = "moe.py"
+pattern = 'or self.ctx < 0:'
+replace = 'or self.ctx < -1:'
+
+[[mutation]]
+name = "a model with no blocks is accepted"
+file = "moe.py"
+pattern = 'self.layers) < 1 or'
+replace = 'self.layers) < 0 or'
+
+[[mutation]]
+name = "k equal to the number of experts is refused"
+file = "moe.py"
+pattern = 'if not 1 <= self.k <= self.experts:'
+replace = 'if not 1 <= self.k < self.experts:'
+
+[[mutation]]
+name = "k of zero is accepted"
+file = "moe.py"
+pattern = 'if not 1 <= self.k <= self.experts:'
+replace = 'if not 0 <= self.k <= self.experts:'
+
+[[mutation]]
+name = "embeddings start twice as wide"
+file = "moe.py"
+pattern = '"emb": rng.normal(0.0, 1.0, (cfg.vocab, d)),'
+replace = '"emb": rng.normal(0.0, 2.0, (cfg.vocab, d)),'
+
+[[mutation]]
+name = "router starts at unit scale"
+file = "moe.py"
+pattern = '"Wr": rng.normal(0.0, 1.0 / np.sqrt(d), (L, d, E)),'
+replace = '"Wr": rng.normal(0.0, 1.0, (L, d, E)),'
+
+[[mutation]]
+name = "expert input weights start at half scale"
+file = "moe.py"
+pattern = 'np.sqrt(2.0 / d)'
+replace = 'np.sqrt(0.5 / d)'
+
+[[mutation]]
+name = "expert output weights start four times as wide"
+file = "moe.py"
+pattern = '0.5 / np.sqrt(h)'
+replace = '2.0 / np.sqrt(h)'
+
+[[mutation]]
+name = "expert biases start at one"
+file = "moe.py"
+pattern = '"b1": np.zeros((L, E, h)),'
+replace = '"b1": np.ones((L, E, h)),'
+
+[[mutation]]
+name = "output weights start too wide"
+file = "moe.py"
+pattern = '"Wo": rng.normal(0.0, 1.0 / np.sqrt(d), (d, cfg.vocab)),'
+replace = '"Wo": rng.normal(0.0, 1.0, (d, cfg.vocab)),'
+
+[[mutation]]
+name = "a copy of the parameters shares memory with them"
+file = "moe.py"
+pattern = 'return {name: value.copy() for name, value in p.items()}'
+replace = 'return {name: value for name, value in p.items()}'
+
+[[mutation]]
+name = "the language ignores its sharpness"
+file = "moe.py"
+pattern = 'return cls(softmax(scale * hidden @ rng.normal(size=(width, vocab))))'
+replace = 'return cls(softmax(hidden @ rng.normal(size=(width, vocab))))'
+
+[[mutation]]
+name = "the language features are not squashed"
+file = "moe.py"
+pattern = 'hidden = np.tanh(u @ rng.normal(size=(latent, width)))'
+replace = 'hidden = u @ rng.normal(size=(latent, width))'
+
+[[mutation]]
+name = "entropy of a zero probability is not guarded"
+file = "moe.py"
+pattern = 'np.log(np.where(self.trans > 0, self.trans, 1.0))'
+replace = 'np.log(self.trans)'
+
+[[mutation]]
+name = "entropy is summed over tokens instead of averaged"
+file = "moe.py"
+pattern = '.sum(axis=1).mean())'
+replace = '.sum(axis=1).sum())'
+
+[[mutation]]
+name = "a draw beyond the rounded cumulative sum is not clamped"
+file = "moe.py"
+pattern = 'return np.minimum(picked, self.trans.shape[1] - 1)'
+replace = 'return picked'
+
+[[mutation]]
+name = "the mixed language swaps its two weights"
+file = "moe.py"
+pattern = 'return Chain((1.0 - share) * self.trans + share * other.trans)'
+replace = 'return Chain(share * self.trans + (1.0 - share) * other.trans)'
+
+[[mutation]]
+name = "the context vector is not added to the embedding"
+file = "moe.py"
+pattern = 'x = p["emb"][tokens] + cfg.ctx * c'
+replace = 'x = p["emb"][tokens]'
+
+[[mutation]]
+name = "forced routes are used only when absent"
+file = "moe.py"
+pattern = 'if forced is not None:'
+replace = 'if forced is None:'
+
+[[mutation]]
+name = "routing noise is ignored when choosing experts"
+file = "moe.py"
+pattern = 'top = top_k(z if noise is None else z + noise[:, layer, :], cfg.k)'
+replace = 'top = top_k(z, cfg.k)'
+
+[[mutation]]
+name = "mixing weights are taken from the noisy logits"
+file = "moe.py"
+pattern = 'g = softmax(np.take_along_axis(z, top, axis=1))'
+replace = 'g = softmax(np.take_along_axis(z if noise is None else z + noise[:, layer, :], top, axis=1))'
+
+[[mutation]]
+name = "mixing weights are not renormalised over the chosen experts"
+file = "moe.py"
+pattern = 'g = softmax(np.take_along_axis(z, top, axis=1))'
+replace = 'g = np.take_along_axis(softmax(z), top, axis=1)'
+
+[[mutation]]
+name = "an expert output is not weighted by its gate"
+file = "moe.py"
+pattern = 'y[rows] += g[rows, slot][:, None] * out'
+replace = 'y[rows] += out'
+
+[[mutation]]
+name = "the residual connection is missing"
+file = "moe.py"
+pattern = 'x = x + y'
+replace = 'x = y'
+
+[[mutation]]
+name = "the expert bias is dropped"
+file = "moe.py"
+pattern = 'h = np.maximum(x[rows] @ p["W1"][layer, e] + p["b1"][layer, e], 0.0)'
+replace = 'h = np.maximum(x[rows] @ p["W1"][layer, e], 0.0)'
+
+[[mutation]]
+name = "the expert activation is linear"
+file = "moe.py"
+pattern = 'h = np.maximum(x[rows] @ p["W1"][layer, e] + p["b1"][layer, e], 0.0)'
+replace = 'h = x[rows] @ p["W1"][layer, e] + p["b1"][layer, e]'
+
+[[mutation]]
+name = "experts still run when switched off"
+file = "moe.py"
+pattern = 'if experts_on:'
+replace = 'if True:'
+
+[[mutation]]
+name = "cross-entropy is summed over the batch"
+file = "moe.py"
+pattern = 'ce = float(-np.log(probs[np.arange(n), targets]).mean())'
+replace = 'ce = float(-np.log(probs[np.arange(n), targets]).sum())'
+
+[[mutation]]
+name = "the logit gradient is not divided by the batch size"
+file = "moe.py"
+pattern = 'dlogits /= n'
+replace = 'dlogits /= 1'
+
+[[mutation]]
+name = "the gate gradient drops the expert output"
+file = "moe.py"
+pattern = 'dg[rows, slot] += (dx[rows] * out).sum(axis=1)'
+replace = 'dg[rows, slot] += dx[rows].sum(axis=1)'
+
+[[mutation]]
+name = "the ReLU gradient passes through dead units"
+file = "moe.py"
+pattern = '* (h > 0)'
+replace = '* (h >= 0)'
+
+[[mutation]]
+name = "the bias gradient is missing"
+file = "moe.py"
+pattern = 'grads["b1"][layer, e] += dh.sum(axis=0)'
+replace = 'grads["b1"][layer, e] += 0.0'
+
+[[mutation]]
+name = "no gradient flows from an expert to the earlier blocks"
+file = "moe.py"
+pattern = 'dx_in[rows] += dh @ p["W1"][layer, e].T'
+replace = 'dx_in[rows] += 0.0'
+
+[[mutation]]
+name = "the router gradient misses the softmax Jacobian"
+file = "moe.py"
+pattern = 'g * (dg - (g * dg).sum(axis=1, keepdims=True))'
+replace = 'g * dg'
+
+[[mutation]]
+name = "no gradient flows from the router to the earlier blocks"
+file = "moe.py"
+pattern = 'dx_in += dz @ p["Wr"][layer].T'
+replace = 'dx_in += 0.0'
+
+[[mutation]]
+name = "the dispatch share is divided by the batch only"
+file = "moe.py"
+pattern = 'share = np.bincount(top.ravel(), minlength=cfg.experts) / (n * cfg.k)'
+replace = 'share = np.bincount(top.ravel(), minlength=cfg.experts) / n'
+
+[[mutation]]
+name = "the balance loss forgets the number of experts"
+file = "moe.py"
+pattern = 'aux += alpha * cfg.experts * float('
+replace = 'aux += alpha * float('
+
+[[mutation]]
+name = "the balance gradient has the wrong sign"
+file = "moe.py"
+pattern = 'dz += (alpha * cfg.experts / n) * pz *'
+replace = 'dz -= (alpha * cfg.experts / n) * pz *'
+
+[[mutation]]
+name = "the embedding gradient overwrites repeated tokens"
+file = "moe.py"
+pattern = 'np.add.at(grads["emb"], tokens, dx)'
+replace = 'grads["emb"][tokens] = dx'
+
+[[mutation]]
+name = "a negative noise scale is accepted"
+file = "moe.py"
+pattern = 'if tau < 0:'
+replace = 'if tau < -1:'
+
+[[mutation]]
+name = "a zero noise scale is refused"
+file = "moe.py"
+pattern = 'if tau < 0:'
+replace = 'if tau <= 0:'
+
+[[mutation]]
+name = "the noise scale is ignored"
+file = "moe.py"
+pattern = 'else tau * rng.gumbel(size=(n, cfg.layers, cfg.experts))'
+replace = 'else rng.gumbel(size=(n, cfg.layers, cfg.experts))'
+
+[[mutation]]
+name = "Adam has no first-moment bias correction"
+file = "moe.py"
+pattern = '(m[name] / (1 - b1**t))'
+replace = 'm[name]'
+
+[[mutation]]
+name = "Adam second-moment decay is changed"
+file = "moe.py"
+pattern = 'b1, b2, eps = 0.9, 0.999, 1e-8'
+replace = 'b1, b2, eps = 0.9, 0.99, 1e-8'
+
+[[mutation]]
+name = "Adam epsilon is too large"
+file = "moe.py"
+pattern = 'b1, b2, eps = 0.9, 0.999, 1e-8'
+replace = 'b1, b2, eps = 0.9, 0.999, 1e-4'
+
+[[mutation]]
+name = "Adam momentum is changed"
+file = "moe.py"
+pattern = 'b1, b2, eps = 0.9, 0.999, 1e-8'
+replace = 'b1, b2, eps = 0.5, 0.999, 1e-8'
+
+[[mutation]]
+name = "the update climbs the loss"
+file = "moe.py"
+pattern = 'p[name] -= lr * (m[name]'
+replace = 'p[name] += lr * (m[name]'
+
+[[mutation]]
+name = "the default balance weight is zero"
+file = "moe.py"
+pattern = 'alpha: float = 0.01,'
+replace = 'alpha: float = 0.0,'
+
+[[mutation]]
+name = "training ignores routing noise"
+file = "moe.py"
+pattern = 'noise = routing_noise(cfg, batch, tau, rng)'
+replace = 'noise = None'
+
+[[mutation]]
+name = "training ignores the experts switch"
+file = "moe.py"
+pattern = 'loss_and_grads(cfg, p, tokens, targets, c, noise, None, alpha, experts_on)'
+replace = 'loss_and_grads(cfg, p, tokens, targets, c, noise, None, alpha, True)'
+
+[[mutation]]
+name = "evaluation ignores routing noise"
+file = "moe.py"
+pattern = 'noise = routing_noise(cfg, n, tau, rng)'
+replace = 'noise = None'
+
+[[mutation]]
+name = "evaluation ignores the experts switch"
+file = "moe.py"
+pattern = 'logits = forward(cfg, p, tokens, c, noise, None, experts_on)[0]'
+replace = 'logits = forward(cfg, p, tokens, c, noise, None, True)[0]'
+
+[[mutation]]
+name = "evaluation sums instead of averaging"
+file = "moe.py"
+pattern = 'return float(-np.log(probs[np.arange(n), targets]).mean())'
+replace = 'return float(-np.log(probs[np.arange(n), targets]).sum())'
+
+[[mutation]]
+name = "expert load is divided by the number of tokens"
+file = "moe.py"
+pattern = '/ routes[:, layer].size'
+replace = '/ len(routes)'
+
+[[mutation]]
+name = "quantization has one level too many"
+file = "moe.py"
+pattern = 'levels = 2 ** (bits - 1) - 1'
+replace = 'levels = 2 ** bits - 1'
+
+[[mutation]]
+name = "one-bit quantization is accepted"
+file = "moe.py"
+pattern = 'if bits < 2:'
+replace = 'if bits < 1:'
+
+[[mutation]]
+name = "quantization truncates instead of rounding"
+file = "moe.py"
+pattern = 'np.clip(np.round(w / scale), -levels, levels)'
+replace = 'np.clip(np.floor(w / scale), -levels, levels)'
+
+[[mutation]]
+name = "quantization scale comes from the mean magnitude"
+file = "moe.py"
+pattern = 'scale = float(np.abs(w).max()) / levels'
+replace = 'scale = float(np.abs(w).mean()) / levels'
+
+[[mutation]]
+name = "default quantization skips the router"
+file = "moe.py"
+pattern = 'WEIGHT_NAMES = ("emb", "Wr", "W1", "W2", "Wo")'
+replace = 'WEIGHT_NAMES = ("emb", "W1", "W2", "Wo")'
+
+[[mutation]]
+name = "a quantized all-zero tensor is the original tensor"
+file = "moe.py"
+pattern = 'if scale > 0 else w.copy()'
+replace = 'if scale > 0 else w'
+
+# ---- signatures.py: the set space, the sensor model, decoding and the closed-form bounds ---------------------------
+
+[[mutation]]
+name = "the set space limit is raised"
+file = "signatures.py"
+pattern = 'MAX_EXPERTS = 20'
+replace = 'MAX_EXPERTS = 24'
+
+[[mutation]]
+name = "the set space limit is lowered"
+file = "signatures.py"
+pattern = 'MAX_EXPERTS = 20'
+replace = 'MAX_EXPERTS = 19'
+
+[[mutation]]
+name = "equal signatures are told apart at a coarse tolerance"
+file = "signatures.py"
+pattern = 'EQUAL = 1e-9'
+replace = 'EQUAL = 1e-3'
+
+[[mutation]]
+name = "rounding error makes equal signatures differ"
+file = "signatures.py"
+pattern = 'EQUAL = 1e-9'
+replace = 'EQUAL = 1e-15'
+
+[[mutation]]
+name = "a set space with k equal to the number of experts is refused"
+file = "signatures.py"
+pattern = 'if not 1 <= k <= experts <= MAX_EXPERTS:'
+replace = 'if not 1 <= k < experts <= MAX_EXPERTS:'
+
+[[mutation]]
+name = "a set space with k of zero is accepted"
+file = "signatures.py"
+pattern = 'if not 1 <= k <= experts <= MAX_EXPERTS:'
+replace = 'if not 0 <= k <= experts <= MAX_EXPERTS:'
+
+[[mutation]]
+name = "masks that are not k-subsets are not marked"
+file = "signatures.py"
+pattern = 'index = np.full(1 << experts, -1, dtype=np.int64)'
+replace = 'index = np.full(1 << experts, 0, dtype=np.int64)'
+
+[[mutation]]
+name = "sets are numbered in reverse"
+file = "signatures.py"
+pattern = 'index[(1 << sets).sum(axis=1)] = np.arange(len(sets))'
+replace = 'index[(1 << sets).sum(axis=1)] = np.arange(len(sets))[::-1]'
+
+[[mutation]]
+name = "a route that is not k distinct experts is accepted"
+file = "signatures.py"
+pattern = 'if (found < 0).any():'
+replace = 'if (found < -1).any():'
+
+[[mutation]]
+name = "experts are dealt to the wrong signature classes"
+file = "signatures.py"
+pattern = 'base[np.arange(experts) % classes]'
+replace = 'base[(np.arange(experts) + 1) % classes]'
+
+[[mutation]]
+name = "more classes than experts are accepted"
+file = "signatures.py"
+pattern = 'if not 1 <= classes <= experts or features < 1 or spread <= 0:'
+replace = 'if not 1 <= classes or features < 1 or spread <= 0:'
+
+[[mutation]]
+name = "zero classes are accepted"
+file = "signatures.py"
+pattern = 'if not 1 <= classes <= experts or features < 1 or spread <= 0:'
+replace = 'if not 0 <= classes <= experts or features < 1 or spread <= 0:'
+
+[[mutation]]
+name = "zero features are accepted"
+file = "signatures.py"
+pattern = 'or features < 1 or'
+replace = 'or features < 0 or'
+
+[[mutation]]
+name = "a zero spread is accepted"
+file = "signatures.py"
+pattern = 'or spread <= 0:'
+replace = 'or spread < 0:'
+
+[[mutation]]
+name = "the spread is ignored"
+file = "signatures.py"
+pattern = 'make_rng(seed).normal(0.0, spread, (classes, features))'
+replace = 'make_rng(seed).normal(0.0, 1.0, (classes, features))'
+
+[[mutation]]
+name = "classes are counted at coarse precision"
+file = "signatures.py"
+pattern = 'return len(np.unique(np.round(self.vectors, 9), axis=0))'
+replace = 'return len(np.unique(np.round(self.vectors, 3), axis=0))'
+
+[[mutation]]
+name = "a set signature is the mean of its experts"
+file = "signatures.py"
+pattern = 'return self.vectors[space.sets].sum(axis=1)'
+replace = 'return self.vectors[space.sets].mean(axis=1)'
+
+[[mutation]]
+name = "drift is measured against the standard deviation"
+file = "signatures.py"
+pattern = 'rms = float(np.sqrt((self.vectors**2).mean()))'
+replace = 'rms = float(self.vectors.std())'
+
+[[mutation]]
+name = "drift ignores its relative size"
+file = "signatures.py"
+pattern = 'rng.normal(0.0, relative * rms, self.vectors.shape)'
+replace = 'rng.normal(0.0, rms, self.vectors.shape)'
+
+[[mutation]]
+name = "groups are compared at coarse precision"
+file = "signatures.py"
+pattern = 'np.unique(np.round(set_sigs, 9), axis=0, return_inverse=True)'
+replace = 'np.unique(np.round(set_sigs, 3), axis=0, return_inverse=True)'
+
+[[mutation]]
+name = "reading noise has unit sd"
+file = "signatures.py"
+pattern = 'clean + rng.normal(0.0, sigma, clean.shape)'
+replace = 'clean + rng.normal(0.0, 1.0, clean.shape)'
+
+[[mutation]]
+name = "the decoder picks the farthest signature"
+file = "signatures.py"
+pattern = 'return d2.argmin(axis=1)'
+replace = 'return d2.argmax(axis=1)'
+
+[[mutation]]
+name = "the decoder distance is not squared"
+file = "signatures.py"
+pattern = 'd2 = ((readings[:, None, :] - set_sigs[None, :, :]) ** 2).sum(axis=-1)'
+replace = 'd2 = ((readings[:, None, :] - set_sigs[None, :, :])).sum(axis=-1)'
+
+[[mutation]]
+name = "the pair error uses the squared distance"
+file = "signatures.py"
+pattern = 'd = np.sqrt(((set_sigs[:, None, :] - set_sigs[None, :, :]) ** 2).sum(axis=-1))'
+replace = 'd = ((set_sigs[:, None, :] - set_sigs[None, :, :]) ** 2).sum(axis=-1)'
+
+[[mutation]]
+name = "the pair error tail starts at the full distance"
+file = "signatures.py"
+pattern = 'sps.norm.sf(d / (2.0 * sigma))'
+replace = 'sps.norm.sf(d / sigma)'
+
+[[mutation]]
+name = "the pair error is the wrong tail"
+file = "signatures.py"
+pattern = 'sps.norm.sf(d / (2.0 * sigma))'
+replace = 'sps.norm.cdf(d / (2.0 * sigma))'
+
+[[mutation]]
+name = "equal signatures are confused with certainty without noise"
+file = "signatures.py"
+pattern = 'out = np.where(same, 0.5, 0.0)'
+replace = 'out = np.where(same, 1.0, 0.0)'
+
+[[mutation]]
+name = "equal signatures are confused with certainty with noise"
+file = "signatures.py"
+pattern = 'np.where(same, 0.5, sps.norm.sf'
+replace = 'np.where(same, 1.0, sps.norm.sf'
+
+[[mutation]]
+name = "the diagonal of the pair errors is not cleared"
+file = "signatures.py"
+pattern = 'np.fill_diagonal(out, 0.0)'
+replace = 'pass'
+
+[[mutation]]
+name = "zero noise takes the division branch"
+file = "signatures.py"
+pattern = 'if sigma <= 0 else'
+replace = 'if sigma < 0 else'
+
+[[mutation]]
+name = "the lower bound uses the smallest pair error"
+file = "signatures.py"
+pattern = 'float(pair.max(axis=1).mean())'
+replace = 'float(pair.min(axis=1).mean())'
+
+[[mutation]]
+name = "the upper bound is not capped at one"
+file = "signatures.py"
+pattern = 'np.minimum(1.0, pair.sum(axis=1)).mean()'
+replace = 'pair.sum(axis=1).mean()'
+
+[[mutation]]
+name = "distinct signatures are counted at coarse precision"
+file = "signatures.py"
+pattern = 'return len(np.unique(np.round(set_sigs, 9), axis=0))'
+replace = 'return len(np.unique(np.round(set_sigs, 3), axis=0))'
+
+[[mutation]]
+name = "the ceiling is divided by the wrong count"
+file = "signatures.py"
+pattern = 'return distinct_signatures(set_sigs) / len(set_sigs)'
+replace = 'return distinct_signatures(set_sigs) / (len(set_sigs) + 1)'
+
+[[mutation]]
+name = "set accuracy counts the misses"
+file = "signatures.py"
+pattern = '== truth).sum())'
+replace = '!= truth).sum())'
+
+[[mutation]]
+name = "bits per slot is measured in nats"
+file = "signatures.py"
+pattern = 'return math.log2(set_count)'
+replace = 'return math.log(set_count)'
+
+# ---- attack.py: the profile, the likelihood, the Bayes decoder and the comparisons between models ------------------
+
+[[mutation]]
+name = "a profile with no runs per token is accepted"
+file = "attack.py"
+pattern = 'if per_token < 1 or alpha <= 0:'
+replace = 'if per_token < 0 or alpha <= 0:'
+
+[[mutation]]
+name = "zero smoothing is accepted"
+file = "attack.py"
+pattern = 'if per_token < 1 or alpha <= 0:'
+replace = 'if per_token < 1 or alpha < 0:'
+
+[[mutation]]
+name = "the profile ignores routing noise"
+file = "attack.py"
+pattern = 'noise = moe.routing_noise(cfg, len(tokens), tau, rng)'
+replace = 'noise = None'
+
+[[mutation]]
+name = "the profile counts each set once"
+file = "attack.py"
+pattern = 'np.add.at(counts[layer], (which[:, layer], tokens), 1.0)'
+replace = 'counts[layer][which[:, layer], tokens] += 1.0'
+
+[[mutation]]
+name = "the profile is not normalised by the smoothing mass"
+file = "attack.py"
+pattern = 'return Profile((counts + alpha) / (per_token + alpha * space.count))'
+replace = 'return Profile((counts + alpha) / per_token)'
+
+[[mutation]]
+name = "the profile has no smoothing"
+file = "attack.py"
+pattern = 'return Profile((counts + alpha) / (per_token + alpha * space.count))'
+replace = 'return Profile(counts / per_token)'
+
+[[mutation]]
+name = "drift with an exact sensor is accepted silently"
+file = "attack.py"
+pattern = 'if true_sigs is not None:'
+replace = 'if true_sigs is None:'
+
+[[mutation]]
+name = "the exact-sensor likelihood is inverted"
+file = "attack.py"
+pattern = '== groups[true_sets][..., None]).astype(float)'
+replace = '!= groups[true_sets][..., None]).astype(float)'
+
+[[mutation]]
+name = "the target signatures are ignored"
+file = "attack.py"
+pattern = 'reading = (set_sigs if true_sigs is None else true_sigs)[true_sets]'
+replace = 'reading = set_sigs[true_sets]'
+
+[[mutation]]
+name = "sensor noise is subtracted"
+file = "attack.py"
+pattern = 'reading = reading + rng.normal(0.0, sigma, reading.shape)'
+replace = 'reading = reading - rng.normal(0.0, sigma, reading.shape)'
+
+[[mutation]]
+name = "the likelihood forgets the factor two in the variance"
+file = "attack.py"
+pattern = '(2.0 * sigma**2)'
+replace = '(sigma**2)'
+
+[[mutation]]
+name = "the likelihood is not scaled to its maximum"
+file = "attack.py"
+pattern = 'np.exp(-(d2 - d2.min(axis=-1, keepdims=True)) / (2.0 * sigma**2))'
+replace = 'np.exp(-d2 / (2.0 * sigma**2))'
+
+[[mutation]]
+name = "scores skip the logarithm"
+file = "attack.py"
+pattern = 'scores += np.log(likelihood[:, layer, :] @ profile.table[layer] + 1e-300)'
+replace = 'scores += likelihood[:, layer, :] @ profile.table[layer]'
+
+[[mutation]]
+name = "scores have no floor"
+file = "attack.py"
+pattern = '@ profile.table[layer] + 1e-300)'
+replace = '@ profile.table[layer] + 0.0)'
+
+[[mutation]]
+name = "scores use every block of the profile"
+file = "attack.py"
+pattern = 'for layer in range(likelihood.shape[1]):'
+replace = 'for layer in range(profile.table.shape[0]):'
+
+[[mutation]]
+name = "a view beyond the model is accepted"
+file = "attack.py"
+pattern = 'if not 1 <= seen <= cfg.layers or repeats < 1:'
+replace = 'if not 1 <= seen or repeats < 1:'
+
+[[mutation]]
+name = "a view of no blocks is accepted"
+file = "attack.py"
+pattern = 'if not 1 <= seen <= cfg.layers or repeats < 1:'
+replace = 'if not 0 <= seen <= cfg.layers or repeats < 1:'
+
+[[mutation]]
+name = "the attacker cannot see every block"
+file = "attack.py"
+pattern = 'if not 1 <= seen <= cfg.layers or repeats < 1:'
+replace = 'if not 1 <= seen < cfg.layers or repeats < 1:'
+
+[[mutation]]
+name = "zero repeats are accepted"
+file = "attack.py"
+pattern = 'or repeats < 1:'
+replace = 'or repeats < 0:'
+
+[[mutation]]
+name = "the token list is ignored"
+file = "attack.py"
+pattern = 'tokens = rng.integers(0, cfg.vocab, trials) if tokens is None else np.asarray(tokens)'
+replace = 'tokens = rng.integers(0, cfg.vocab, trials)'
+
+[[mutation]]
+name = "the trial count is not taken from the token list"
+file = "attack.py"
+pattern = 'trials = len(tokens)'
+replace = 'pass'
+
+[[mutation]]
+name = "repeats are ignored"
+file = "attack.py"
+pattern = 'for _ in range(repeats):'
+replace = 'for _ in range(1):'
+
+[[mutation]]
+name = "only the last repeat counts"
+file = "attack.py"
+pattern = 'scores += token_scores(profile, set_likelihood(set_sigs, which, sigma, rng, true_sigs))'
+replace = 'scores = token_scores(profile, set_likelihood(set_sigs, which, sigma, rng, true_sigs))'
+
+[[mutation]]
+name = "the sensor sees every block whatever the view"
+file = "attack.py"
+pattern = 'noise)[:, :seen, :])'
+replace = 'noise))'
+
+[[mutation]]
+name = "routing noise in the target is ignored"
+file = "attack.py"
+pattern = 'noise = moe.routing_noise(cfg, trials, tau, rng)'
+replace = 'noise = None'
+
+[[mutation]]
+name = "accuracy counts the misses"
+file = "attack.py"
+pattern = 'hits = int((scores.argmax(axis=1) == tokens).sum())'
+replace = 'hits = int((scores.argmax(axis=1) != tokens).sum())'
+
+[[mutation]]
+name = "the decoder names the least likely token"
+file = "attack.py"
+pattern = 'scores.argmax(axis=1) == tokens'
+replace = 'scores.argmin(axis=1) == tokens'
+
+[[mutation]]
+name = "the interval is for the wrong count"
+file = "attack.py"
+pattern = 'lo, hi = wilson_interval(hits, trials)'
+replace = 'lo, hi = wilson_interval(hits + 1, trials)'
+
+[[mutation]]
+name = "a block counts as changed only when all its experts changed"
+file = "attack.py"
+pattern = '.any(axis=2).mean())'
+replace = '.all(axis=2).mean())'
+
+[[mutation]]
+name = "the ceiling sees every block whatever the view"
+file = "attack.py"
+pattern = 'np.zeros((cfg.vocab, cfg.dim)))[:, :seen, :]'
+replace = 'np.zeros((cfg.vocab, cfg.dim)))'
+
+[[mutation]]
+name = "the ceiling is a count and not a share"
+file = "attack.py"
+pattern = 'axis=0)) / cfg.vocab'
+replace = 'axis=0))'

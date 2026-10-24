@@ -8,6 +8,7 @@ failed. A mutation that no test notices ("SURVIVED") means a claim in the README
     python scripts/mutation_check.py 35            # one RFD (number)
     python scripts/mutation_check.py --all         # every RFD that has a mutation file
     python scripts/mutation_check.py 35 --list     # show the mutations without running them
+    python scripts/mutation_check.py 35 --jobs 4   # run four mutated copies at a time (results print in file order)
 
 Two controls run first for every package: the unmodified copy must pass (otherwise the harness itself is broken),
 and a copy whose ``__init__.py`` raises on import must fail (otherwise the tests are not importing the copy, and a
@@ -19,6 +20,9 @@ The edit is applied to the first occurrence of ``pattern`` only, and ``pattern``
 from __future__ import annotations
 
 import argparse
+import os
+import concurrent.futures
+import queue
 import shutil
 import subprocess
 import sys
@@ -73,7 +77,15 @@ def run_tests(number: int, tmp_src: Path, timeout: int) -> tuple[bool, str]:
         "-o", f"pythonpath={tmp_src}", "-o", "addopts=--import-mode=importlib", "-rf",
     ]
     try:
-        proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, timeout=timeout)
+        env = os.environ.copy()
+        existing_pythonpath = env.get("PYTHONPATH")
+        env["PYTHONPATH"] = (
+            str(tmp_src) if not existing_pythonpath
+            else str(tmp_src) + os.pathsep + existing_pythonpath
+        )
+        proc = subprocess.run(
+            cmd, cwd=ROOT, env=env, capture_output=True, text=True, timeout=timeout
+        )
     except subprocess.TimeoutExpired:
         return False, f"timed out after {timeout}s (counts as noticed)"
     if proc.returncode == 0:
@@ -81,22 +93,26 @@ def run_tests(number: int, tmp_src: Path, timeout: int) -> tuple[bool, str]:
     for line in proc.stdout.splitlines():
         if line.startswith("FAILED") or line.startswith("ERROR"):
             return False, line.split(" - ")[0].replace("FAILED ", "").replace("ERROR ", "").strip()
-    return False, f"pytest exit code {proc.returncode}"
+    detail = (proc.stdout + "\n" + proc.stderr)[-1200:]
+    return False, f"pytest exit code {proc.returncode}: {detail}"
 
 
 def fresh_copy(parent: Path) -> Path:
-    dst = parent / "src"
-    if dst.exists():
-        shutil.rmtree(dst)
-    shutil.copytree(SRC, dst, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.egg-info"))
+    """Create a unique source copy instead of deleting a path Windows may still have locked."""
+    copy_root = Path(tempfile.mkdtemp(prefix="src_copy_", dir=parent))
+    dst = copy_root / "src"
+    shutil.copytree(
+        SRC, dst,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.egg-info"),
+    )
     return dst
 
 
-def check_package(number: int, timeout: int) -> tuple[int, int, int]:
+def check_package(number: int, timeout: int, jobs: int = 1) -> tuple[int, int, int]:
     """Returns (caught, survived, harness_errors)."""
     mutations = load_mutations(number)
     caught = survived = errors = 0
-    with tempfile.TemporaryDirectory(prefix=f"mut{number:03d}_") as tmp:
+    with tempfile.TemporaryDirectory(prefix=f"mut{number:03d}_", ignore_cleanup_errors=True) as tmp:
         parent = Path(tmp)
         # control 1: unmodified copy passes
         ok, note = run_tests(number, fresh_copy(parent), timeout)
@@ -109,16 +125,29 @@ def check_package(number: int, timeout: int) -> tuple[int, int, int]:
         ok, note = run_tests(number, tmp_src, timeout)
         print(f"  control (canary import error is noticed): {'ok' if not ok else 'FAILED, tests import some other copy'}")
         errors += 0 if not ok else 1
-        for m in mutations:
-            tmp_src = fresh_copy(parent)
-            apply_mutation(tmp_src, number, m)
-            passed, note = run_tests(number, tmp_src, timeout)
-            if passed:
-                survived += 1
-                print(f"  SURVIVED  {m.name}  ({m.file})")
-            else:
-                caught += 1
-                print(f"  caught    {m.name}  ({m.file}) by {note}")
+        # every running test process gets a source copy of its own; results print in the order of the file
+        workdirs: queue.Queue[Path] = queue.Queue()
+        for j in range(max(1, jobs)):
+            (parent / f"job{j}").mkdir()
+            workdirs.put(parent / f"job{j}")
+
+        def judge(m: Mutation) -> tuple[bool, str]:
+            workdir = workdirs.get()
+            try:
+                tmp_src = fresh_copy(workdir)
+                apply_mutation(tmp_src, number, m)
+                return run_tests(number, tmp_src, timeout)
+            finally:
+                workdirs.put(workdir)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, jobs)) as pool:
+            for m, (passed, note) in zip(mutations, pool.map(judge, mutations)):
+                if passed:
+                    survived += 1
+                    print(f"  SURVIVED  {m.name}  ({m.file})", flush=True)
+                else:
+                    caught += 1
+                    print(f"  caught    {m.name}  ({m.file}) by {note}", flush=True)
     return caught, survived, errors
 
 
@@ -132,6 +161,7 @@ def main() -> int:
     ap.add_argument("--all", action="store_true", help="run every RFD that has a mutation file")
     ap.add_argument("--list", action="store_true", help="list mutations without running tests")
     ap.add_argument("--timeout", type=int, default=600, help="seconds per test run (default 600)")
+    ap.add_argument("--jobs", type=int, default=1, help="mutated copies tested at the same time (default 1)")
     args = ap.parse_args()
     numbers = numbers_with_mutations() if args.all else ([args.number] if args.number else [])
     if not numbers:
@@ -145,7 +175,7 @@ def main() -> int:
             for m in mutations:
                 print(f"  - {m.name}: {m.file}: {m.pattern!r} -> {m.replace!r}")
             continue
-        caught, survived, errors = check_package(n, args.timeout)
+        caught, survived, errors = check_package(n, args.timeout, args.jobs)
         total_caught += caught
         total_survived += survived
         print(f"  => {caught} caught, {survived} survived, {errors} harness error(s)")

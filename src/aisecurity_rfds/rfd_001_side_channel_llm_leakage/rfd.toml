@@ -1,0 +1,20 @@
+number = 1
+slug = "side_channel_llm_leakage"
+title = "Side-Channel Leakage from LLM Inference"
+author = "Gabriel Kulp"
+upstream_state = "idea"
+kind = "simulation"
+summary = "A simulation of what power, EM, acoustic, thermal and software-sensor measurements could reveal about an LLM's inputs under an explicit Hamming-weight leakage model: leakage detection (Welch t, TVLA), a correlation attack, token identification with error bounds, mixture-of-experts routing leakage, shared cloud sensors and a response hidden behind a refusal, with every analysis tool checked against closed-form results on synthetic traces."
+not_established = [
+  "Nothing was measured on a GPU: the leakage law (Hamming weight of each multiplication), every channel's gain, noise and sample rate, the per-expert power shift and the co-tenant noise are assumptions chosen as round numbers, so which channel is best on real hardware, and whether an expert's power shift exceeds a real sensor's noise, is not established.",
+  "The model is one 12 x 24 int8 layer with a known weight matrix and a 64-token vocabulary: attention, KV caches, batching and prefill parallelism, tensor-core and mixed-precision datapaths, clock gating and DVFS, and a trained router are not modelled, so the token and topic accuracies describe the toy and not a transformer.",
+  "The cloud result is a sensor model (a shared sensor with extra noise and an exposed sample rate); GPU partitioning, power capping, hypervisor access control and the telemetry a tenant can really read are not modelled, so whether attacks work through real virtualization layers is not established.",
+  "Defences (RFD 004), covert use of the channels (RFD 003) and fingerprinting of a particular MoE model (RFD 002) are outside the package, and the refusal result only shows that decoding a response before replacing it leaves the decoding visible, not how large the leak is on a real serving stack.",
+]
+open_questions_total = 3
+open_questions_addressed = 3
+open_questions = [
+  "Which side-channel (power, EM, acoustic, thermal) offers the best SNR for different attack targets?",
+  "How much does model architecture (dense vs MoE) affect leakage surface?",
+  "Can attacks work through virtualization layers in cloud environments?",
+]
