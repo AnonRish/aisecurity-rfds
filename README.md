@@ -28,12 +28,12 @@ overclaiming language and a rule that packages import only the shared library.
 ## Status
 
 <!-- STATUS:BEGIN -->
-**6 of 42 RFD packages present** (4 reference-implementation, 2 simulation); 670 RFD-specific test functions (parametrised cases are not expanded, so pytest runs more).
+**8 of 42 RFD packages present** (4 reference-implementation, 4 simulation); 938 RFD-specific test functions (parametrised cases are not expanded, so pytest runs more).
 
 | # | RFD | Author | Kind | Open questions addressed | Test functions | What the package provides |
 | --- | --- | --- | --- | --- | --- | --- |
-| 001 | Side-Channel Leakage from LLM Inference | Gabriel Kulp | not started | - | - | |
-| 002 | MoE Expert Fingerprinting | Gabriel Kulp | not started | - | - | |
+| 001 | Side-Channel Leakage from LLM Inference | Gabriel Kulp | simulation | 3/3 | 101 | A simulation of what power, EM, acoustic, thermal and software-sensor measurements could reveal about an LLM's inputs under an explicit Hamming-weight leakage model: leakage detection (Welch t, TVLA), a correlation attack, token identification with error bounds, mixture-of-experts routing leakage, shared cloud sensors and a response hidden behind a refusal, with every analysis tool checked against closed-form results on synthetic traces. |
+| 002 | MoE Expert Fingerprinting | Gabriel Kulp | simulation | 3/3 | 167 | A simulation of expert fingerprinting: a small mixture-of-experts language model trained from scratch, an assumed sensor that reports a noisy sum of per-expert signatures, and a naive-Bayes attacker who names each token from the experts that ran, used to measure how many experts must be distinguishable, how a table transfers across quantization, fine-tuning, retraining and signature drift, and what Gumbel routing noise costs in quality and gains in hiding. |
 | 003 | Trained Covert Communication via Side-Channels | Gabriel Kulp | not started | - | - | |
 | 004 | Functional Invariants for Side-Channel Defense | Gabriel Kulp | not started | - | - | |
 | 005 | Network Tap for Compute Verification | James Petrie | not started | - | - | |

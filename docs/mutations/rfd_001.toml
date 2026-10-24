@@ -1,0 +1,502 @@
+# Seeded bugs for RFD 001. Run: python scripts/mutation_check.py 1
+# Each entry breaks one claim of the README in one place; the package's tests must notice every one.
+
+# ---- leakage.py: the leakage model and the channel front end -----------------------------------
+
+[[mutation]]
+name = "a Hamming weight counts only the low eight bits"
+file = "leakage.py"
+pattern = '& 0xFFFF]'
+replace = '& 0xFF]'
+
+[[mutation]]
+name = "a multiplication leaks the sum of its operands instead of the product"
+file = "leakage.py"
+pattern = 'products = weights.astype(np.int64) * x.astype(np.int64)[None, :]'
+replace = 'products = weights.astype(np.int64) + x.astype(np.int64)[None, :]'
+
+[[mutation]]
+name = "every template uses the first token's embedding"
+file = "leakage.py"
+pattern = 'mac_leakage(self.weights, self.embeddings[token])'
+replace = 'mac_leakage(self.weights, self.embeddings[0])'
+
+[[mutation]]
+name = "a window is the product of the two rates, not their quotient"
+file = "leakage.py"
+pattern = 'round(OP_RATE_HZ / self.rate_hz)'
+replace = 'round(OP_RATE_HZ * self.rate_hz)'
+
+[[mutation]]
+name = "a window is never shorter than two operations"
+file = "leakage.py"
+pattern = 'return max(1, round('
+replace = 'return max(2, round('
+
+[[mutation]]
+name = "per-operation noise does not average down inside a window"
+file = "leakage.py"
+pattern = 'math.sqrt(self.noise_op**2 / self.window + self.noise_out**2)'
+replace = 'math.sqrt(self.noise_op**2 + self.noise_out**2)'
+
+[[mutation]]
+name = "output noise is averaged down by the window"
+file = "leakage.py"
+pattern = 'math.sqrt(self.noise_op**2 / self.window + self.noise_out**2)'
+replace = 'math.sqrt(self.noise_op**2 / self.window + self.noise_out**2 / self.window)'
+
+[[mutation]]
+name = "samples per token divide the rate by the slot"
+file = "leakage.py"
+pattern = 'return self.rate_hz * TOKEN_SLOT_S'
+replace = 'return self.rate_hz / TOKEN_SLOT_S'
+
+[[mutation]]
+name = "a window longer than the signal is not diluted"
+file = "leakage.py"
+pattern = 'signal.sum(axis=-1, keepdims=True) / m'
+replace = 'signal.sum(axis=-1, keepdims=True) / n'
+
+[[mutation]]
+name = "block means become block sums"
+file = "leakage.py"
+pattern = '.reshape(*signal.shape[:-1], blocks, m).mean(axis=-1)'
+replace = '.reshape(*signal.shape[:-1], blocks, m).sum(axis=-1)'
+
+[[mutation]]
+name = "the last window is not padded"
+file = "leakage.py"
+pattern = '[(0, blocks * m - n)]'
+replace = '[(0, 0)]'
+
+[[mutation]]
+name = "the gain is dropped for a window longer than the signal"
+file = "leakage.py"
+pattern = 'return self.gain * signal.sum('
+replace = 'return signal.sum('
+
+[[mutation]]
+name = "the gain is dropped for short windows"
+file = "leakage.py"
+pattern = 'return self.gain * padded.reshape'
+replace = 'return padded.reshape'
+
+[[mutation]]
+name = "repeated runs do not average the noise"
+file = "leakage.py"
+pattern = 'self.noise / math.sqrt(repeats)'
+replace = 'self.noise'
+
+[[mutation]]
+name = "other tenants add their noise linearly, not in quadrature"
+file = "leakage.py"
+pattern = '(tenants - 1) * other_noise**2'
+replace = '(tenants - 1) * other_noise'
+
+[[mutation]]
+name = "the attacker's own tenant is counted among the others"
+file = "leakage.py"
+pattern = 'math.sqrt(self.noise_out**2 + (tenants - 1) * other_noise**2)'
+replace = 'math.sqrt(self.noise_out**2 + tenants * other_noise**2)'
+
+[[mutation]]
+name = "negative output noise is accepted"
+file = "leakage.py"
+pattern = ' or self.noise_op < 0 or self.noise_out < 0:'
+replace = ' or self.noise_op < 0:'
+
+[[mutation]]
+name = "a zero gain is accepted"
+file = "leakage.py"
+pattern = 'self.gain <= 0 or self.rate_hz <= 0'
+replace = 'self.gain < 0 or self.rate_hz <= 0'
+
+[[mutation]]
+name = "a zero sample rate is accepted"
+file = "leakage.py"
+pattern = 'or self.rate_hz <= 0'
+replace = 'or self.rate_hz < 0'
+
+[[mutation]]
+name = "zero tenants is accepted"
+file = "leakage.py"
+pattern = 'if tenants < 1:'
+replace = 'if tenants < 0:'
+
+# ---- analysis.py: detection, correlation attack and identification bounds ----------------------
+
+[[mutation]]
+name = "Welch's t uses the population variance"
+file = "analysis.py"
+pattern = 'a.var(axis=0, ddof=1)'
+replace = 'a.var(axis=0, ddof=0)'
+
+[[mutation]]
+name = "Welch's t has the wrong sign"
+file = "analysis.py"
+pattern = 'return (a.mean(axis=0) - b.mean(axis=0))'
+replace = 'return (b.mean(axis=0) - a.mean(axis=0))'
+
+[[mutation]]
+name = "the traces formula forgets the factor of two"
+file = "analysis.py"
+pattern = 'math.ceil(2 * (threshold + sps.norm.ppf(power)) ** 2 / effect**2)'
+replace = 'math.ceil((threshold + sps.norm.ppf(power)) ** 2 / effect**2)'
+
+[[mutation]]
+name = "the traces formula subtracts the power term"
+file = "analysis.py"
+pattern = 'math.ceil(2 * (threshold + sps.norm.ppf(power))'
+replace = 'math.ceil(2 * (threshold - sps.norm.ppf(power))'
+
+[[mutation]]
+name = "the traces formula scales with the effect, not its square"
+file = "analysis.py"
+pattern = '/ effect**2)'
+replace = '/ effect)'
+
+[[mutation]]
+name = "an effect of zero is accepted"
+file = "analysis.py"
+pattern = 'if effect <= 0 or not 0 < power < 1:'
+replace = 'if effect < 0 or not 0 < power < 1:'
+
+[[mutation]]
+name = "the correlation of a measurement has the wrong SNR term"
+file = "analysis.py"
+pattern = 'snr / math.sqrt(1 + snr**2)'
+replace = 'snr / math.sqrt(1 + snr)'
+
+[[mutation]]
+name = "the per-secret correlation uses the spread, not its square"
+file = "analysis.py"
+pattern = 'return sd / math.sqrt(sd**2 + sigma**2)'
+replace = 'return sd / math.sqrt(sd + sigma**2)'
+
+[[mutation]]
+name = "the per-secret spread is read for the wrong activation"
+file = "analysis.py"
+pattern = 'sd = float(_SECRET_SD[secret + 128])'
+replace = 'sd = float(_SECRET_SD[secret + 127])'
+
+[[mutation]]
+name = "Fisher's formula drops its constant"
+file = "analysis.py"
+pattern = 'return 3 + (z / math.atanh(rho)) ** 2'
+replace = 'return (z / math.atanh(rho)) ** 2'
+
+[[mutation]]
+name = "Fisher's formula forgets the transformation"
+file = "analysis.py"
+pattern = '(z / math.atanh(rho))'
+replace = '(z / rho)'
+
+[[mutation]]
+name = "the detection count ignores the power"
+file = "analysis.py"
+pattern = 'fisher_traces(rho, threshold + sps.norm.ppf(power))'
+replace = 'fisher_traces(rho, threshold)'
+
+[[mutation]]
+name = "correlations are not centred on the predictions"
+file = "analysis.py"
+pattern = 'p = predictions - predictions.mean(axis=1, keepdims=True)'
+replace = 'p = predictions'
+
+[[mutation]]
+name = "a constant prediction gives NaN"
+file = "analysis.py"
+pattern = 'np.where(denom == 0, 1.0, denom)'
+replace = 'denom'
+
+[[mutation]]
+name = "the attack picks the worst hypothesis"
+file = "analysis.py"
+pattern = 'np.argmax(correlations(observed, cpa_predictions(weights)))'
+replace = 'np.argmin(correlations(observed, cpa_predictions(weights)))'
+
+[[mutation]]
+name = "the hypotheses are shifted by one"
+file = "analysis.py"
+pattern = 'HYPOTHESES = np.arange(-128, 128)'
+replace = 'HYPOTHESES = np.arange(-127, 129)'
+
+[[mutation]]
+name = "the attack success rate counts misses"
+file = "analysis.py"
+pattern = 'hits += cpa_recover(observed, weights) == x'
+replace = 'hits += cpa_recover(observed, weights) != x'
+
+[[mutation]]
+name = "the closest confusable activation may be the activation itself"
+file = "analysis.py"
+pattern = 'if h == secret or _SECRET_SD[h + 128] == 0:'
+replace = 'if _SECRET_SD[h + 128] == 0:'
+
+[[mutation]]
+name = "the closest confusable activation is the least similar"
+file = "analysis.py"
+pattern = 'if r > best_r:'
+replace = 'if r < best_r:'
+
+[[mutation]]
+name = "the leak spread is a mean, not a root mean square"
+file = "analysis.py"
+pattern = 'float(np.sqrt((_SECRET_SD**2).mean()))'
+replace = 'float(_SECRET_SD.mean())'
+
+[[mutation]]
+name = "the flag rate counts correlations below the threshold"
+file = "analysis.py"
+pattern = 'hits += math.atanh(r) * math.sqrt(samples - 3) > TVLA_THRESHOLD'
+replace = 'hits += math.atanh(r) * math.sqrt(samples - 3) < TVLA_THRESHOLD'
+
+[[mutation]]
+name = "the sample ladder doubles instead of growing by half"
+file = "analysis.py"
+pattern = '8 * 1.5**k'
+replace = '8 * 2.0**k'
+
+[[mutation]]
+name = "recovery needs only half the target success rate"
+file = "analysis.py"
+pattern = '.p >= target'
+replace = '.p >= target / 2'
+
+[[mutation]]
+name = "identical hypotheses are never confused"
+file = "analysis.py"
+pattern = 'else np.where(d == 0, 0.5, sps.norm.sf(d / (2 * sigma)))'
+replace = 'else np.where(d == 0, 0.0, sps.norm.sf(d / (2 * sigma)))'
+
+[[mutation]]
+name = "noise-free hypotheses are always confused"
+file = "analysis.py"
+pattern = 'np.where(d == 0, 0.5, 0.0) if sigma <= 0'
+replace = 'np.where(d == 0, 0.5, 0.5) if sigma <= 0'
+
+[[mutation]]
+name = "the pair error uses the distance, not half of it"
+file = "analysis.py"
+pattern = 'sps.norm.sf(d / (2 * sigma))'
+replace = 'sps.norm.sf(d / sigma)'
+
+[[mutation]]
+name = "the lower bound takes the smallest pairwise error"
+file = "analysis.py"
+pattern = 'float(pair.max(axis=1).mean())'
+replace = 'float(pair.min(axis=1).mean())'
+
+[[mutation]]
+name = "the union bound is not capped at one"
+file = "analysis.py"
+pattern = 'np.minimum(1.0, pair.sum(axis=1))'
+replace = 'pair.sum(axis=1)'
+
+[[mutation]]
+name = "a hypothesis is confused with itself"
+file = "analysis.py"
+pattern = 'np.fill_diagonal(pair, 0.0)'
+replace = 'pass'
+
+[[mutation]]
+name = "the nearest row is the farthest one"
+file = "analysis.py"
+pattern = 'return d2.argmin(axis=1)'
+replace = 'return d2.argmax(axis=1)'
+
+[[mutation]]
+name = "averaging repeats does not shrink the noise"
+file = "analysis.py"
+pattern = 'sigma / math.sqrt(repeats)'
+replace = 'sigma'
+
+[[mutation]]
+name = "the repeat search guarantees with the lower bound"
+file = "analysis.py"
+pattern = '1 - identification_error_bounds(expected, sigma / math.sqrt(n))[1] >= target'
+replace = '1 - identification_error_bounds(expected, sigma / math.sqrt(n))[0] >= target'
+
+[[mutation]]
+name = "the repeat search accepts a target of one"
+file = "analysis.py"
+pattern = 'if not 0 < target < 1:'
+replace = 'if not 0 < target < 2:'
+
+# ---- routing.py: the expert router and the routing attacker ------------------------------------
+
+[[mutation]]
+name = "an expert set's level is the mean of its experts' shifts"
+file = "routing.py"
+pattern = 'shifts[list(s)].sum()'
+replace = 'shifts[list(s)].mean()'
+
+[[mutation]]
+name = "every token is routed by the first category's table"
+file = "routing.py"
+pattern = 'cumulative[truth][:, None, :]'
+replace = 'cumulative[0][None, None, :]'
+
+[[mutation]]
+name = "the router accumulates probabilities over the wrong axis"
+file = "routing.py"
+pattern = 'self.probs.cumsum(axis=1)'
+replace = 'self.probs.cumsum(axis=0)'
+
+[[mutation]]
+name = "mutual information is in nats"
+file = "routing.py"
+pattern = 'np.log2(ratio)'
+replace = 'np.log(ratio)'
+
+[[mutation]]
+name = "mutual information compares with the largest mixture entry"
+file = "routing.py"
+pattern = 'mean = p.mean(axis=0)'
+replace = 'mean = p.max(axis=0)'
+
+[[mutation]]
+name = "the Bayes accuracy divides by the number of expert sets"
+file = "routing.py"
+pattern = '.sum() / router.categories'
+replace = '.sum() / router.probs.shape[1]'
+
+[[mutation]]
+name = "the Bayes accuracy maximises over the wrong axis"
+file = "routing.py"
+pattern = 'router.probs.max(axis=0)'
+replace = 'router.probs.max(axis=1)'
+
+[[mutation]]
+name = "a sensor with a fifth of a sample per token is accepted"
+file = "routing.py"
+pattern = 'if channel.samples_per_slot < 1:'
+replace = 'if channel.samples_per_slot < 0.1:'
+
+[[mutation]]
+name = "a sensor with 0.98 samples per token is accepted"
+file = "routing.py"
+pattern = 'if channel.samples_per_slot < 1:'
+replace = 'if channel.samples_per_slot < 0.95:'
+
+[[mutation]]
+name = "slot noise does not average the samples of a token"
+file = "routing.py"
+pattern = 'channel.noise / math.sqrt(channel.samples_per_slot)'
+replace = 'channel.noise'
+
+[[mutation]]
+name = "slot noise averages the samples of a token linearly"
+file = "routing.py"
+pattern = 'channel.noise / math.sqrt(channel.samples_per_slot)'
+replace = 'channel.noise / channel.samples_per_slot'
+
+[[mutation]]
+name = "the set-error bounds ignore the channel gain"
+file = "routing.py"
+pattern = 'identification_error_bounds((channel.gain * router.levels)[:, None]'
+replace = 'identification_error_bounds((router.levels)[:, None]'
+
+[[mutation]]
+name = "the routing attacker ignores the channel gain"
+file = "routing.py"
+pattern = 'mu = channel.gain * router.levels'
+replace = 'mu = router.levels'
+
+[[mutation]]
+name = "the routing attacker assumes the wrong noise width"
+file = "routing.py"
+pattern = '((y[..., None] - mu) / sigma) ** 2'
+replace = '((y[..., None] - mu) / 1.0) ** 2'
+
+[[mutation]]
+name = "the routing attacker picks the least likely category"
+file = "routing.py"
+pattern = '.sum(axis=1).argmax(axis=1)'
+replace = '.sum(axis=1).argmin(axis=1)'
+
+# ---- scenarios.py: the scenarios built on the model --------------------------------------------
+
+[[mutation]]
+name = "a channel's physics ignores its sample rate"
+file = "scenarios.py"
+pattern = 'return channel.gain, channel.noise_op, channel.noise_out, channel.rate_hz'
+replace = 'return channel.gain, channel.noise_op, channel.noise_out'
+
+[[mutation]]
+name = "the best effect forgets the spread of the random group"
+file = "scenarios.py"
+pattern = 'expected.var(axis=0) / 2'
+replace = 'expected.var(axis=0)'
+
+[[mutation]]
+name = "the best effect measures from zero, not from the mean reading"
+file = "scenarios.py"
+pattern = 'np.abs(expected[token] - expected.mean(axis=0))'
+replace = 'np.abs(expected[token])'
+
+[[mutation]]
+name = "the null comparison uses the fixed token"
+file = "scenarios.py"
+pattern = 'if fixed is None else np.full(traces, fixed)'
+replace = 'if fixed is not None else np.full(traces, fixed)'
+
+[[mutation]]
+name = "the dense attacker votes by token number modulo the block"
+file = "scenarios.py"
+pattern = '(named // per)[..., None]'
+replace = '(named % per)[..., None]'
+
+[[mutation]]
+name = "a prompt's tokens come from the whole vocabulary"
+file = "scenarios.py"
+pattern = 'tokens_used = truth[:, None] * per + rng.integers(0, per, size=(trials, tokens))'
+replace = 'tokens_used = rng.integers(0, layer.vocab, size=(trials, tokens))'
+
+[[mutation]]
+name = "the token search steps by one instead of doubling"
+file = "scenarios.py"
+pattern = 'tokens *= 2'
+replace = 'tokens += 1'
+
+[[mutation]]
+name = "a post-hoc filter stops the decoding"
+file = "scenarios.py"
+pattern = 'return Transcript(REFUSAL_TEXT, tuple(hidden))'
+replace = 'return Transcript(REFUSAL_TEXT, ())'
+
+[[mutation]]
+name = "a pre-check refusal still decodes the response"
+file = "scenarios.py"
+pattern = 'return Transcript(REFUSAL_TEXT, ())'
+replace = 'return Transcript(REFUSAL_TEXT, tuple(hidden))'
+
+[[mutation]]
+name = "recovery is scored against the decoded tokens only"
+file = "scenarios.py"
+pattern = 'return hits / len(hidden)'
+replace = 'return hits / max(1, len(transcript.decoded))'
+
+[[mutation]]
+name = "recovery compares every decoded token with the first hidden token"
+file = "scenarios.py"
+pattern = 'hidden[step]'
+replace = 'hidden[0]'
+
+[[mutation]]
+name = "hidden recovery averages over one response too many"
+file = "scenarios.py"
+pattern = 'return total / responses'
+replace = 'return total / (responses + 1)'
+
+[[mutation]]
+name = "the noise-free ceiling counts every row as distinct"
+file = "analysis.py"
+pattern = 'len(np.unique(expected, axis=0)) / len(expected)'
+replace = 'len(expected) / len(expected)'
+
+[[mutation]]
+name = "the noise-free ceiling counts distinct columns, not rows"
+file = "analysis.py"
+pattern = 'len(np.unique(expected, axis=0)) / len(expected)'
+replace = 'len(np.unique(expected, axis=1)) / len(expected)'
